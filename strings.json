@@ -1,0 +1,6 @@
+{
+    "OtpSent" : "OTP sent successfully",
+    "OtpError" : "Error sending OTP",
+    "LoginSuccessful" : "Login successful",
+    "" : ""
+}

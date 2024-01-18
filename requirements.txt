@@ -1,0 +1,92 @@
+CR: Change Request
+- There are Files in S3 bucket.
+- Setup a Virus scan for all files in that bucket
+    - immediate scan should happen when a file is uploaded to a bucket
+        - if an infected file is present, the system should remove that file & quarantine
+        - if there is no infection, then no action is required
+
+******************************************************************
+
+Next Project:
+Login with Mobile Number 
+    OTP is required(if otp is not valid or time over need to resend OTP).
+Display the list of features
+    Document pickup
+    Package pickage (boxes)
+        weight (kg/gm)
+        dimensions
+Gather From address details
+    Sender
+    Mobile Number
+    Address
+        Street
+        Area / Location
+            If we enter 'Madhapur', system should display autocompleted list of addresses with 'Madhapur'
+            Use an AI chatbot
+    Pincode
+            Auto populate the pincode based on above selection or allow to enter manually
+
+Gather To address details
+    Receiver
+    Mobile Number
+    Address
+        Area / Location
+            If we enter 'Madhapur', system should display autocompleted list of addresses with 'Madhapur'
+            Use an AI chatbot
+    Pincode
+            Auto populate the pincode based on above selection or allow to enter manually
+
+Calculate the shipping charges
+    Use an AI chatbot
+
+Collect the payment
+    Enable UPI payment option
+        User should be able to enter UPI id or
+        User should be able to scan QR code
+
+After successful collection of shipping charges
+    Send a whatsapp confirmation on the Order
+
+In web
+    Under 'Orders' display current status of the Order
+
+Not in scope:
+1. Assign the order to an agent
+2. Dispatch updates from an agent
+3. Package Collection status
+4. In transit status
+5. Delivery status
+
+Technical Specs:
+1. Node , React (MERN Stack with MYSQL)
+2. Use MD for UI
+3. All APIs should use JWT token for authorization
+4. Login should be validated with OTP only
+5. Deployment in AWS with ECR image & ECS
+6. Keep two separate services: ui, backend (two git repos)
+7. Use Docker
+
+Discuss the project:
+Demo at the end of each item as listed below:  ask questions
+    Draw a flow chart (drawio)       
+    Develop Wireframes using Blasamiq
+    Develop Architure block diagram (data & control flow)
+    Swagger API document (with Swagger UI)
+    Start implementing UI (no dynamic data)
+    Start implementing APIs
+    Integrate the APIs to UI
+
+
+Requirements Gathering
+Sprint Grooming (User stories are ready for development. Each one of them has details & Acceptance Criteria)
+Sprint Planning 
+Daily Standup
+Release (nonprod & Prod : Daily)
+Final UAT - E2E
+
+
+Derive the ETC (Estimated Time To dev Complete)
+    in Trello
+
+Daily Standup
+    Give update from Trello Board
