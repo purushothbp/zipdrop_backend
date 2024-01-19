@@ -1,59 +1,47 @@
-// Import necessary modules
 const express = require('express');
+const axios = require('axios');
 const bodyParser = require('body-parser');
-const services = require('../../services')
-// const { sendOTPViaSMS, generateOTP, validateOTP } = require('../../services');
+const config = require('../../config.json');
+const { generateOTP } = require('../../services'); 
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = config.PORT;
 
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended:true}));
 
+const accessToken = config.ACCESS_TOKEN;
 
-app.post('/getmessage', services.sendMessage);
-
-// Endpoint to get OTP
-app.post('/getotp', (req, res) => {
-  const  mobileNumber  = req.body;
-
-  if (!mobileNumber) {
-    return res.status(400).json({ error: 'Mobile number is required' });
-  }
-
-  const generatedOTP = generateOTP();
-
-  sendOTPViaSMS(+916382331949, generatedOTP, res) // replace '6382331949' with the actual mobile number
-    .then(() => {
-      res.status(200).json({ success: true, message: 'OTP sent successfully' });
-    })
-    .catch((error) => {
-      res.status(500).json({ error: 'Error sending OTP' });
-    });
+app.post('/sendmessage', async (req, res) => {
+    try {
+      const { whatsappNumber } = req.body;
+      
   
-  validateOTP('userEnteredOTP', generatedOTP,mobileNumber,  res); 
-});
-
-// Endpoint to validate OTP during login
-app.post('/login', (req, res) => {
-  const { mobileNumber, userEnteredOTP } = req.body;
-
-  if (!mobileNumber || !userEnteredOTP) {
-    return res.status(400).json({ error: 'Mobile number and OTP are required' });
-  }
-
-  // Validate the entered OTP
-  const isValidOTP = validateOTP(userEnteredOTP, /* Fetch the stored OTP from your database */);
-
-  if (isValidOTP) {
-    console.log(`User ${mobileNumber} successfully logged in`);
-    res.status(200).json({ success: true, message: 'Login successful' });
-  } else {
-    console.log(`Invalid OTP for user ${mobileNumber}`);
-    res.status(401).json({ error: 'Invalid OTP' });
-  }
-});
+      if (!whatsappNumber) {
+        return res.status(400).json({ success: false, error: "WhatsApp number is required in the request body." });
+      }
+  
+      const otp = generateOTP();
+      const apiUrl = `https://app-server.wati.io/api/v1/sendSessionMessage/${whatsappNumber}`;
+      console.log( apiUrl, whatsappNumber )
+  
+      const response = await axios.post(
+        apiUrl,
+        { messageText: `Your OTP for zipdrop is ${otp}` },
+        {
+          headers: {
+            Authorization: accessToken,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+  
+      res.json({ success: true, otp });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
 
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`Server is running at http://localhost:${port}`);
 });

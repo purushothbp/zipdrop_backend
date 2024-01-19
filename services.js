@@ -45,7 +45,7 @@ function sendOTPViaSMS(to, generatedOTP, res) {
 
 // Function to generate OTP
 function generateOTP() {
-    return otpGenerator.generate(6, { digits: true, alphabets: false, upperCase: false, specialChars: false });
+    return otpGenerator.generate(6, { digits: false, alphabets: true, upperCase: true, specialChars: true });
   }
 
 
