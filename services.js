@@ -45,10 +45,12 @@ function sendOTPViaSMS(to, generatedOTP, res) {
 
 // Function to generate OTP
 function generateOTP() {
-  const otpGenerator = require('otp-generator');
-
-  return otpGenerator.generate(6, { digits: true, upperCaseAlphabets: false, specialChars: false });
+  const min = 100000; // Minimum 6-digit number
+  const max = 999999; // Maximum 6-digit number
+  const otp = Math.floor(Math.random() * (max - min + 1)) + min;
+  return otp.toString(); // Convert to string if needed
 }
+
 
 
 

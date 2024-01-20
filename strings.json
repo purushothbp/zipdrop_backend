@@ -2,5 +2,6 @@
     "OtpSent" : "OTP sent successfully",
     "OtpError" : "Error sending OTP",
     "LoginSuccessful" : "Login successful",
-    "WhatsappNumberRequired" : "WhatsApp number is required in the request body."
+    "WhatsappNumberRequired" : "WhatsApp number is required in the request body.",
+    "InvalidNumber" : "Invalid whatsappNumber format" 
 }

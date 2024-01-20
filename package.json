@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www"
+    "start": "nodemon ./bin/server.js"
   },
   "dependencies": {
     "axios": "^1.6.5",
@@ -13,6 +13,7 @@
     "http-errors": "~1.6.3",
     "jade": "~1.11.0",
     "morgan": "~1.9.1",
+    "mysql": "^2.18.1",
     "nodemon": "^3.0.3",
     "otp-generator": "^4.0.1",
     "twilio": "^4.20.1"

@@ -16,12 +16,18 @@ app.post('/sendmessage', async (req, res) => {
     try {
       const { whatsappNumber } = req.body;
   
+      const MAX_DIGITS = 12;
+
       if (!whatsappNumber) {
         return res.status(400).json({ success: false, message:strings.WhatsappNumberRequired});
       }
+      else if (whatsappNumber > whatsappNumber.slice(0, MAX_DIGITS)) {
+        return res.status(400).json({ success: false, message: strings.InvalidNumber});
+      }
   
       const otp = generateOTP();
-      const apiUrl = `https://app-server.wati.io/api/v1/sendSessionMessage/${whatsappNumber}?messageText=${otp}`;
+      const url = config.Api_Url
+      const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
   
       const response = await axios.post(
         apiUrl,
