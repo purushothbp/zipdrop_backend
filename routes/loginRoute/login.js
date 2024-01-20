@@ -2,8 +2,8 @@ const express = require('express');
 const axios = require('axios');
 const bodyParser = require('body-parser');
 const config = require('../../config.json');
-const { generateOTP } = require('../../services'); 
-
+const { generateOTP } = require('../../services');
+const strings = require('../../strings.json');
 const app = express();
 const port = config.PORT;
 
@@ -11,22 +11,21 @@ app.use(bodyParser.json());
 
 const accessToken = config.ACCESS_TOKEN;
 
+// Endpoint to generate OTP as WhatsApp message
 app.post('/sendmessage', async (req, res) => {
     try {
       const { whatsappNumber } = req.body;
-      
   
       if (!whatsappNumber) {
-        return res.status(400).json({ success: false, error: "WhatsApp number is required in the request body." });
+        return res.status(400).json({ success: false, message:strings.WhatsappNumberRequired});
       }
   
       const otp = generateOTP();
-      const apiUrl = `https://app-server.wati.io/api/v1/sendSessionMessage/${whatsappNumber}`;
-      console.log( apiUrl, whatsappNumber )
+      const apiUrl = `https://app-server.wati.io/api/v1/sendSessionMessage/${whatsappNumber}?messageText=${otp}`;
   
       const response = await axios.post(
         apiUrl,
-        { messageText: `Your OTP for zipdrop is ${otp}` },
+        {},
         {
           headers: {
             Authorization: accessToken,

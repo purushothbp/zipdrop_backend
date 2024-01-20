@@ -8,19 +8,19 @@ const twilioPhoneNumber = 'whatsapp:+916382331949';
 
 const client = new twilio(accountSid, authToken);
 
-const sendMessage = async(req,res)=>{
-  try{
+const sendMessage = async (req, res) => {
+  try {
     client.messages.create({
       body: req.body.message,
-      from : twilioPhoneNumber,
-      to: 'whatsapp'+req.body.to
+      from: twilioPhoneNumber,
+      to: 'whatsapp' + req.body.to
 
     })
-    .then(message => console.log('message sent'));
-    return res.status(200).json({success:true, message:"mesage sent"});
+      .then(message => console.log('message sent'));
+    return res.status(200).json({ success: true, message: "mesage sent" });
   }
-  catch(error){
-    return res.status(400).json({ success:false, message:error.message});
+  catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
   }
 }
 
@@ -45,8 +45,10 @@ function sendOTPViaSMS(to, generatedOTP, res) {
 
 // Function to generate OTP
 function generateOTP() {
-    return otpGenerator.generate(6, { digits: false, alphabets: true, upperCase: true, specialChars: true });
-  }
+  const otpGenerator = require('otp-generator');
+
+  return otpGenerator.generate(6, { digits: true, upperCaseAlphabets: false, specialChars: false });
+}
 
 
 
