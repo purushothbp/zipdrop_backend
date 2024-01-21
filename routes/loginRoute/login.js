@@ -6,8 +6,11 @@ const { generateOTP } = require('../../services');
 const strings = require('../../strings.json');
 const app = express();
 const port = config.PORT;
+const cors = require('cors');
 
 app.use(bodyParser.json());
+app.use(cors());
+
 
 const accessToken = config.ACCESS_TOKEN;
 
