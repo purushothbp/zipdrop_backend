@@ -21,12 +21,14 @@ app.post('/sendmessage', async (req, res) => {
 
     const MAX_DIGITS = 12;
     const RESEND_COOLDOWN = 30000; // 30 seconds in milliseconds
-    let resendCooldownMap = new Map(); // Map to 
+    let resendCooldownMap = new Map(); 
+    let otpMap = new Map();
+
 
     if (!whatsappNumber) {
       return res.status(400).json({ success: false, message: strings.WhatsappNumberRequired });
     }
-    else if (whatsappNumber > whatsappNumber.slice(0, MAX_DIGITS)) {
+    else if (!whatsappNumber || whatsappNumber.length !== MAX_DIGITS) {
       return res.status(400).json({ success: false, message: strings.InvalidNumber });
     }
     const cooldownTimestamp = resendCooldownMap.get(whatsappNumber);
@@ -52,8 +54,11 @@ app.post('/sendmessage', async (req, res) => {
         },
       }
     );
+    resendCooldownMap.set(whatsappNumber, Date.now());
 
+    otpMap.set(whatsappNumber, otp);
     res.json({ success: true, otp });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: error.message });
@@ -71,7 +76,7 @@ app.post('/resend_otp', async (req, res) => {
     if (!whatsappNumber) {
       return res.status(400).json({ success: false, message: strings.WhatsappNumberRequired });
     }
-    else if (whatsappNumber > whatsappNumber.slice(0, MAX_DIGITS)) {
+    else if (!whatsappNumber || whatsappNumber.length !== MAX_DIGITS) {
       return res.status(400).json({ success: false, message: strings.InvalidNumber });
     }
     const cooldownTimestamp = resendCooldownMap.get(whatsappNumber);
@@ -98,7 +103,31 @@ app.post('/resend_otp', async (req, res) => {
       }
     );
 
+    resendCooldownMap.set(whatsappNumber, Date.now());
+    otpMap.set(whatsappNumber, otp);
     res.json({ success: true, otp });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/login', (req, res) => {
+  try {
+    const { whatsappNumber, enteredOTP } = req.body;
+
+    if (!whatsappNumber || whatsappNumber.length !== MAX_DIGITS || !enteredOTP) {
+      return res.status(400).json({ success: false, message: strings.InvalidInput });
+    }
+
+    const storedOTP = otpMap.get(whatsappNumber);
+
+    if (!storedOTP || enteredOTP !== storedOTP) {
+      return res.status(400).json({ success: false, message: strings.InvalidOTP });
+    }
+
+    otpMap.delete(whatsappNumber);
+    res.json({ success: true, message: 'Login successful' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: error.message });
