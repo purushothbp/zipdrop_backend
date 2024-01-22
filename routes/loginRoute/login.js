@@ -13,17 +13,15 @@ app.use(cors());
 
 
 const accessToken = config.ACCESS_TOKEN;
+const MAX_DIGITS = 12;
+const RESEND_COOLDOWN = 30000; // 30 seconds in milliseconds
+let resendCooldownMap = new Map();
+let otpMap = new Map();
 
 // Endpoint to generate OTP as WhatsApp message
 app.post('/sendmessage', async (req, res) => {
   try {
     const { whatsappNumber } = req.body;
-
-    const MAX_DIGITS = 12;
-    const RESEND_COOLDOWN = 30000; // 30 seconds in milliseconds
-    let resendCooldownMap = new Map(); 
-    let otpMap = new Map();
-
 
     if (!whatsappNumber) {
       return res.status(400).json({ success: false, message: strings.WhatsappNumberRequired });
@@ -43,6 +41,7 @@ app.post('/sendmessage', async (req, res) => {
     const otp = generateOTP();
     const url = config.Api_Url
     const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
+
 
     const response = await axios.post(
       apiUrl,
@@ -68,10 +67,6 @@ app.post('/sendmessage', async (req, res) => {
 app.post('/resend_otp', async (req, res) => {
   try {
     const { whatsappNumber } = req.body;
-
-    const MAX_DIGITS = 12;
-    const RESEND_COOLDOWN = 30000; // 30 seconds in milliseconds
-    let resendCooldownMap = new Map(); // Map to 
 
     if (!whatsappNumber) {
       return res.status(400).json({ success: false, message: strings.WhatsappNumberRequired });
@@ -114,25 +109,33 @@ app.post('/resend_otp', async (req, res) => {
 
 app.post('/login', (req, res) => {
   try {
-    const { whatsappNumber, enteredOTP } = req.body;
+    const { whatsappNumber, otp } = req.body;
 
-    if (!whatsappNumber || whatsappNumber.length !== MAX_DIGITS || !enteredOTP) {
+    console.log('Received login request:', { whatsappNumber, otp });
+
+    // Rest of your code...
+
+    if (!whatsappNumber || whatsappNumber.length !== MAX_DIGITS || !otp) {
+      console.log('Invalid input. Returning error.');
       return res.status(400).json({ success: false, message: strings.InvalidInput });
     }
 
     const storedOTP = otpMap.get(whatsappNumber);
 
-    if (!storedOTP || enteredOTP !== storedOTP) {
+    if (!storedOTP || otp !== storedOTP) {
+      console.log('Invalid OTP. Returning error.');
       return res.status(400).json({ success: false, message: strings.InvalidOTP });
     }
 
     otpMap.delete(whatsappNumber);
+    console.log('Login successful.');
     res.json({ success: true, message: 'Login successful' });
   } catch (error) {
-    console.error(error);
+    console.error('Error in /login:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
