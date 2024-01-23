@@ -10,6 +10,8 @@ CR: Change Request
 Next Project:
 Login with Mobile Number 
     OTP is required(if otp is not valid or time over need to resend OTP).
+    alse need to create the auth token for the user.
+    need to store the date of the user login or registration.
 Display the list of features
     Document pickup
     Package pickage (boxes)

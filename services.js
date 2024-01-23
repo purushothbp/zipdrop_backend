@@ -10,7 +10,7 @@ app.use(bodyParser.json());
 app.use(cors());
 
 const accessToken = config.ACCESS_TOKEN;
-const MAX_DIGITS = 12;
+const MAX_DIGITS = 12; //number of digits need to present in mobileNumber
 const RESEND_COOLDOWN = 30000; // 30 seconds in milliseconds
 let resendCooldownMap = new Map();
 let otpMap = new Map();
@@ -117,8 +117,6 @@ async function userLogin(req, res) {
     const { whatsappNumber, otp } = req.body;
 
     console.log('Received login request:', { whatsappNumber, otp });
-
-    // Rest of your code...
 
     if (!whatsappNumber || whatsappNumber.length !== MAX_DIGITS || !otp) {
       console.log('Invalid input. Returning error.');
