@@ -198,9 +198,48 @@ async function userLogin(req, res) {
 }
 
 
+async function packageDetails(req, res) {
+  try {
+    const { whatsappNumber, Weight, length, breadth, height } = req.body;
+
+    // Calculate amount based on weight (Replace this with your actual calculation logic)
+    const amount = calculateAmountBasedOnWeight(Weight);
+
+    // Store information in the 'package_details' table
+    const insertQuery = `
+      INSERT INTO package_details (whatsappNumber, Weight, length, breadth, height, amount)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    const values = [whatsappNumber, Weight, length, breadth, height, amount];
+
+    // Execute the INSERT query
+    dbConnection.query(insertQuery, values, (error, results) => {
+      if (error) {
+        console.error('Error inserting record:', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      console.log('Record inserted successfully:', results);
+
+      res.json({ success: true, message: 'Package details stored successfully' });
+    });
+  } catch (error) {
+    console.error('Error in /packageDetails:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+function calculateAmountBasedOnWeight(weight) {
+  const some_rate = 10; 
+  return weight * some_rate;
+}
+
+
 module.exports = {
   generateOTP,
   otpGeneration,
   userLogin,
-  resendOtp
+  resendOtp,
+  packageDetails
 }

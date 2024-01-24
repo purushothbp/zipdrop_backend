@@ -23,9 +23,7 @@ connection.connect((err) => {
     Date DATE,
     Auth_token VARCHAR(255),
     Otp INT);`
-
-  
-
+    
   connection.query(createTableQuery, (error, results, fields) => {
     if (error) {
       console.error('Error creating table:', error);
