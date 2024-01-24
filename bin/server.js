@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/', sendOtp);
 app.use('/', resend_otp);
 app.use('/', loginRoute);
-app,use('/', package_details)
+app.use('/', package_details)
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
