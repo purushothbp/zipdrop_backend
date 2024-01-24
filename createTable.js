@@ -1,11 +1,12 @@
 const mysql = require('mysql2');
+const config = require('./config.json');
 
 // MySQL connection configuration
 const connection = mysql.createConnection({
-  host: 'localhost', // Usually 'localhost'
-  user: 'root',
-  password: 'Zipdrop@123',
-  database: 'zipdrop',
+  host: config.DB_HOST, // Usually 'localhost'
+  user: config.DB_USER,
+  password: config.DB_PASSWORD,
+  database: config.DB_NAME,
 });
 
 // Connect to MySQL
