@@ -35,6 +35,11 @@ function generateOTP() {
   return otp.toString(); 
 }
 
+function calculateAmountBasedOnWeight(weight) {
+  const some_rate = 10; 
+  return weight * some_rate;
+}
+
 const randomBytesAsync = promisify(crypto.randomBytes);
 
 async function generateRandomToken(length = 256) {
@@ -202,7 +207,7 @@ async function packageDetails(req, res) {
   try {
     const { whatsappNumber, Weight, length, breadth, height } = req.body;
 
-    const amount = calculateAmountBasedOnWeight(Weight);
+    const amount = (Weight*10);
 
     const insertQuery = `
       INSERT INTO package_details (whatsappNumber, Weight, length, breadth, height, amount)
@@ -227,10 +232,7 @@ async function packageDetails(req, res) {
   }
 }
 
-function calculateAmountBasedOnWeight(weight) {
-  const some_rate = 10; 
-  return weight * some_rate;
-}
+
 
 
 module.exports = {
