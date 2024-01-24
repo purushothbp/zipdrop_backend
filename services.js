@@ -6,16 +6,18 @@ const express = require('express')
 const strings = require('./strings.json');
 const bcrypt = require('bcrypt');
 const mysql = require('mysql2');
+const crypto = require('crypto');
+const { promisify } = require('util');
 const app = express();
 
 app.use(bodyParser.json());
 app.use(cors());
 
 const dbConnection = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: 'Zipdrop@123',
-  database: 'zipdrop',
+  host: config.DB_HOST,
+  user: config.DB_USER,
+  password: config.DB_PASSWORD,
+  database:config.DB_NAME,
 });
 
 const accessToken = config.ACCESS_TOKEN;
@@ -32,8 +34,16 @@ function generateOTP() {
   const otp = Math.floor(Math.random() * (max - min + 1)) + min;
   return otp.toString(); 
 }
+
+const randomBytesAsync = promisify(crypto.randomBytes);
+
+async function generateRandomToken(length = 256) {
+  const randomBytes = await randomBytesAsync(length);
+  return randomBytes.toString('hex');
+}
+
 async function generateAuthToken() {
-  const authToken = generateRandomToken();
+  const authToken = await generateRandomToken();
   const saltRounds = 10;
 
   try {
@@ -150,12 +160,21 @@ async function userLogin(req, res) {
       return res.status(400).json({ success: false, message: strings.InvalidOTP });
     }
 
+    // Generate hashed authentication token
+    let auth_token;
+    try {
+      auth_token = await generateAuthToken();
+      console.log('Generated Hashed Token:', auth_token);
+    } catch (error) {
+      console.error('Error generating hashed token:', error.message);
+      return res.status(500).json({ success: false, error: 'Error generating hashed token' });
+    }
+
     const insertQuery = `
       INSERT INTO userlogin (Mobile_Number, Date, Auth_token, Otp)
       VALUES (?, NOW(), ?, ?)
-    ;`
+    `;
 
-    const auth_token = generateAuthToken(); // Implement a function to generate Auth Token
     const values = [whatsappNumber, auth_token, otp];
 
     // Execute the INSERT query
@@ -177,6 +196,7 @@ async function userLogin(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
 
 module.exports = {
   generateOTP,
