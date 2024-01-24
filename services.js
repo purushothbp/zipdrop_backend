@@ -202,10 +202,8 @@ async function packageDetails(req, res) {
   try {
     const { whatsappNumber, Weight, length, breadth, height } = req.body;
 
-    // Calculate amount based on weight (Replace this with your actual calculation logic)
     const amount = calculateAmountBasedOnWeight(Weight);
 
-    // Store information in the 'package_details' table
     const insertQuery = `
       INSERT INTO package_details (whatsappNumber, Weight, length, breadth, height, amount)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -213,7 +211,6 @@ async function packageDetails(req, res) {
 
     const values = [whatsappNumber, Weight, length, breadth, height, amount];
 
-    // Execute the INSERT query
     dbConnection.query(insertQuery, values, (error, results) => {
       if (error) {
         console.error('Error inserting record:', error);
