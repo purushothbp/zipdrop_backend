@@ -18,10 +18,14 @@ connection.connect((err) => {
   console.log('Connected to MySQL');
 
   // SQL query to create a table (change according to your requirements)
-  const createTableQuery =`CREATE TABLE IF NOT EXISTS login_table (
+  const createTableQuery = `
+  CREATE TABLE IF NOT EXISTS userlogin (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    WHATSAP_NUMBER int(12),
-    date varchar(10));`
+    Mobile_Number VARCHAR(12),
+    Date DATE,
+    Auth_token VARCHAR(255),
+    Otp INT);`
+
   
 
   // Execute the query

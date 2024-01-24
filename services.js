@@ -4,10 +4,19 @@ const bodyParser = require('body-parser');
 const config = require('./config.json');
 const express = require('express')
 const strings = require('./strings.json');
+const bcrypt = require('bcrypt');
+const mysql = require('mysql2');
 const app = express();
 
 app.use(bodyParser.json());
 app.use(cors());
+
+const dbConnection = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: 'Zipdrop@123',
+  database: 'zipdrop',
+});
 
 const accessToken = config.ACCESS_TOKEN;
 const MAX_DIGITS = 12; //number of digits need to present in mobileNumber
@@ -22,6 +31,17 @@ function generateOTP() {
   const max = 999999; 
   const otp = Math.floor(Math.random() * (max - min + 1)) + min;
   return otp.toString(); 
+}
+async function generateAuthToken() {
+  const authToken = generateRandomToken();
+  const saltRounds = 10;
+
+  try {
+    const hashedToken = await bcrypt.hash(authToken, saltRounds);
+    return hashedToken;
+  } catch (error) {
+    throw new Error('Error hashing the authentication token');
+  }
 }
 
 async function otpGeneration(req, res)  {
@@ -130,9 +150,28 @@ async function userLogin(req, res) {
       return res.status(400).json({ success: false, message: strings.InvalidOTP });
     }
 
-    otpMap.delete(whatsappNumber);
-    console.log('Login successful.');
-    res.json({ success: true, message: 'Login successful' });
+    const insertQuery = `
+      INSERT INTO userlogin (Mobile_Number, Date, Auth_token, Otp)
+      VALUES (?, NOW(), ?, ?)
+    ;`
+
+    const auth_token = generateAuthToken(); // Implement a function to generate Auth Token
+    const values = [whatsappNumber, auth_token, otp];
+
+    // Execute the INSERT query
+    dbConnection.query(insertQuery, values, (error, results) => {
+      if (error) {
+        console.error('Error inserting record:', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      console.log('Record inserted successfully:', results);
+
+      otpMap.delete(whatsappNumber); // Clear OTP from the temporary map
+      console.log('Login successful.');
+
+      res.json({ success: true, message: 'Login successful' });
+    });
   } catch (error) {
     console.error('Error in /login:', error);
     res.status(500).json({ success: false, error: error.message });
