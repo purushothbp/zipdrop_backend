@@ -176,6 +176,7 @@ async function userLogin(req, res) {
         console.error('Error checking user existence:', error);
         return res.status(500).json({ success: false, error: error.message });
       }
+      
 
       // If the user exists, update the existing record
       if (results.length > 0) {
