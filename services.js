@@ -8,6 +8,7 @@ const bcrypt = require('bcrypt');
 const mysql = require('mysql2');
 const crypto = require('crypto');
 const { promisify } = require('util');
+const { v4: uuidv4 } = require('uuid');
 const app = express();
 
 app.use(bodyParser.json());
@@ -142,6 +143,8 @@ async function resendOtp (req, res) {
   }
 }
 
+
+
 async function userLogin(req, res) {
   try {
     const { whatsappNumber, otp } = req.body;
@@ -153,15 +156,6 @@ async function userLogin(req, res) {
       return res.status(400).json({ success: false, message: strings.InvalidInput });
     }
 
-    let auth_token;
-    try {
-      auth_token = await generateAuthToken();
-      console.log('Generated Hashed Token:', auth_token);
-    } catch (error) {
-      console.error('Error generating hashed token:', error.message);
-      return res.status(500).json({ success: false, error: 'Error generating hashed token' });
-    }
-    
     const storedOTP = otpMap.get(whatsappNumber);
 
     if (!storedOTP || otp !== storedOTP) {
@@ -169,7 +163,7 @@ async function userLogin(req, res) {
       return res.status(400).json({ success: false, message: strings.InvalidOTP });
     }
 
-    // Check if the user already exists in the userlogin table
+    // Query to check user already exists in the table or not
     const checkUserQuery = `
       SELECT * FROM userlogin
       WHERE Mobile_Number = ?;
@@ -180,9 +174,20 @@ async function userLogin(req, res) {
         console.error('Error checking user existence:', error);
         return res.status(500).json({ success: false, error: error.message });
       }
-      
 
-      // If the user exists, update the existing record
+      let auth_token;
+      try {
+        auth_token = await generateAuthToken();
+        console.log('Generated Hashed Token:', auth_token);
+      } catch (error) {
+        console.error('Error generating hashed token:', error.message);
+        return res.status(500).json({ success: false, error: 'Error generating hashed token' });
+      }
+
+      // Generating a UUID for the user for future reference
+      const uuid = uuidv4();
+
+      // If the user exists, updating the existing record
       if (results.length > 0) {
         const updateQuery = `
           UPDATE userlogin
@@ -192,7 +197,6 @@ async function userLogin(req, res) {
 
         const updateValues = [auth_token, otp, whatsappNumber];
 
-        // Execute the UPDATE query
         dbConnection.query(updateQuery, updateValues, (updateError, updateResults) => {
           if (updateError) {
             console.error('Error updating record:', updateError);
@@ -204,16 +208,16 @@ async function userLogin(req, res) {
           otpMap.delete(whatsappNumber); // Clear OTP from the temporary map
           console.log('Login successful (existing user).');
 
-          res.json({ success: true, message: 'Login successful (existing user)' });
+          res.json({ success: true, message: 'Login successful (existing user)', userId });
         });
       } else {
-        // If the user does not exist, insert a new record
+        // If the user does not exist, inserting a new record to the table
         const insertQuery = `
-          INSERT INTO userlogin (Mobile_Number, Date, Auth_token, Otp)
-          VALUES (?, NOW(), ?, ?);
+          INSERT INTO userlogin (uuid, Mobile_Number, Date, Auth_token, Otp)
+          VALUES (?, ?, NOW(), ?, ?);
         `;
 
-        const insertValues = [whatsappNumber, auth_token, otp];
+        const insertValues = [userId, whatsappNumber, auth_token, otp];
 
         dbConnection.query(insertQuery, insertValues, (insertError, insertResults) => {
           if (insertError) {
@@ -226,7 +230,7 @@ async function userLogin(req, res) {
           otpMap.delete(whatsappNumber);
           console.log('Login successful (new user).');
 
-          res.json({ success: true, message: 'Login successful (new user)' });
+          res.json({ success: true, message: 'Login successful (new user)',});
         });
       }
     });
@@ -235,6 +239,8 @@ async function userLogin(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
+
 
 
 
