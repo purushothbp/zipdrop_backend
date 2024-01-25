@@ -35,11 +35,6 @@ function generateOTP() {
   return otp.toString(); 
 }
 
-function calculateAmountBasedOnWeight(weight) {
-  const some_rate = 10; 
-  return weight * some_rate;
-}
-
 const randomBytesAsync = promisify(crypto.randomBytes);
 
 async function generateRandomToken(length = 256) {
@@ -158,6 +153,15 @@ async function userLogin(req, res) {
       return res.status(400).json({ success: false, message: strings.InvalidInput });
     }
 
+    let auth_token;
+    try {
+      auth_token = await generateAuthToken();
+      console.log('Generated Hashed Token:', auth_token);
+    } catch (error) {
+      console.error('Error generating hashed token:', error.message);
+      return res.status(500).json({ success: false, error: 'Error generating hashed token' });
+    }
+    
     const storedOTP = otpMap.get(whatsappNumber);
 
     if (!storedOTP || otp !== storedOTP) {
