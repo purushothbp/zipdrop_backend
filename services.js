@@ -205,16 +205,16 @@ async function userLogin(req, res) {
 
 async function packageDetails(req, res) {
   try {
-    const { whatsappNumber, Weight, length, breadth, height } = req.body;
+    const { Weight, width, height } = req.body;
 
     const amount = (Weight*10);
 
     const insertQuery = `
-      INSERT INTO package_details (whatsappNumber, Weight, length, breadth, height, amount)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO package_details ( Weight,  height, width, amount)
+      VALUES ( ?, ?, ?, ?)
     `;
 
-    const values = [whatsappNumber, Weight, length, breadth, height, amount];
+    const values = [ Weight,  height, width, amount];
 
     dbConnection.query(insertQuery, values, (error, results) => {
       if (error) {
