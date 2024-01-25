@@ -165,42 +165,72 @@ async function userLogin(req, res) {
       return res.status(400).json({ success: false, message: strings.InvalidOTP });
     }
 
-    // Generate hashed authentication token
-    let auth_token;
-    try {
-      auth_token = await generateAuthToken();
-      console.log('Generated Hashed Token:', auth_token);
-    } catch (error) {
-      console.error('Error generating hashed token:', error.message);
-      return res.status(500).json({ success: false, error: 'Error generating hashed token' });
-    }
-
-    const insertQuery = `
-      INSERT INTO userlogin (Mobile_Number, Date, Auth_token, Otp)
-      VALUES (?, NOW(), ?, ?)
+    // Check if the user already exists in the userlogin table
+    const checkUserQuery = `
+      SELECT * FROM userlogin
+      WHERE Mobile_Number = ?;
     `;
 
-    const values = [whatsappNumber, auth_token, otp];
-
-    // Execute the INSERT query
-    dbConnection.query(insertQuery, values, (error, results) => {
+    dbConnection.query(checkUserQuery, [whatsappNumber], async (error, results) => {
       if (error) {
-        console.error('Error inserting record:', error);
+        console.error('Error checking user existence:', error);
         return res.status(500).json({ success: false, error: error.message });
       }
 
-      console.log('Record inserted successfully:', results);
+      // If the user exists, update the existing record
+      if (results.length > 0) {
+        const updateQuery = `
+          UPDATE userlogin
+          SET Date = NOW(), Auth_token = ?, Otp = ?
+          WHERE Mobile_Number = ?;
+        `;
 
-      otpMap.delete(whatsappNumber); // Clear OTP from the temporary map
-      console.log('Login successful.');
+        const updateValues = [auth_token, otp, whatsappNumber];
 
-      res.json({ success: true, message: 'Login successful' });
+        // Execute the UPDATE query
+        dbConnection.query(updateQuery, updateValues, (updateError, updateResults) => {
+          if (updateError) {
+            console.error('Error updating record:', updateError);
+            return res.status(500).json({ success: false, error: updateError.message });
+          }
+
+          console.log('Record updated successfully:', updateResults);
+
+          otpMap.delete(whatsappNumber); // Clear OTP from the temporary map
+          console.log('Login successful (existing user).');
+
+          res.json({ success: true, message: 'Login successful (existing user)' });
+        });
+      } else {
+        // If the user does not exist, insert a new record
+        const insertQuery = `
+          INSERT INTO userlogin (Mobile_Number, Date, Auth_token, Otp)
+          VALUES (?, NOW(), ?, ?);
+        `;
+
+        const insertValues = [whatsappNumber, auth_token, otp];
+
+        dbConnection.query(insertQuery, insertValues, (insertError, insertResults) => {
+          if (insertError) {
+            console.error('Error inserting record:', insertError);
+            return res.status(500).json({ success: false, error: insertError.message });
+          }
+
+          console.log('Record inserted successfully:', insertResults);
+
+          otpMap.delete(whatsappNumber);
+          console.log('Login successful (new user).');
+
+          res.json({ success: true, message: 'Login successful (new user)' });
+        });
+      }
     });
   } catch (error) {
     console.error('Error in /login:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
 
 
 async function packageDetails(req, res) {
