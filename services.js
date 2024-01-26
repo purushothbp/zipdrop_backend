@@ -165,7 +165,7 @@ async function userLogin(req, res) {
 
     // Query to check if the user already exists in the table or not
     const checkUserQuery = `
-      SELECT * FROM userlogin
+      SELECT uuid FROM userlogin
       WHERE Mobile_Number = ?;
     `;
 
@@ -176,6 +176,8 @@ async function userLogin(req, res) {
       }
 
       let auth_token;
+      let uuid;
+
       try {
         auth_token = await generateAuthToken();
         console.log('Generated Hashed Token:', auth_token);
@@ -184,11 +186,10 @@ async function userLogin(req, res) {
         return res.status(500).json({ success: false, error: 'Error generating hashed token' });
       }
 
-      // Generating a UUID for the user for future reference
-      const uuid = uuidv4();
-
-      // If the user exists, updating the existing record
+      // If the user exists, get the existing UUID
       if (results.length > 0) {
+        uuid = results[0].uuid;
+
         const updateQuery = `
           UPDATE userlogin
           SET Date = NOW(), Auth_token = ?, Otp = ?
@@ -212,6 +213,8 @@ async function userLogin(req, res) {
         });
       } else {
         // If the user does not exist, inserting a new record to the table
+        uuid = uuidv4();
+
         const insertQuery = `
           INSERT INTO userlogin (uuid, Mobile_Number, Date, Auth_token, Otp)
           VALUES (?, ?, NOW(), ?, ?);
@@ -239,10 +242,6 @@ async function userLogin(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
-
-
-
-
 
 
 async function packageDetails(req, res) {
