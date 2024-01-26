@@ -163,7 +163,7 @@ async function userLogin(req, res) {
       return res.status(400).json({ success: false, message: strings.InvalidOTP });
     }
 
-    // Query to check if the user already exists in the table or not
+    // Query to check user already exists in the table or not
     const checkUserQuery = `
       SELECT * FROM userlogin
       WHERE Mobile_Number = ?;
@@ -208,7 +208,7 @@ async function userLogin(req, res) {
           otpMap.delete(whatsappNumber); // Clear OTP from the temporary map
           console.log('Login successful (existing user).');
 
-          res.json({ success: true, message: 'Login successful (existing user)', uuid, authToken: auth_token });
+          res.json({ success: true, message: 'Login successful (existing user)', userId });
         });
       } else {
         // If the user does not exist, inserting a new record to the table
@@ -217,7 +217,7 @@ async function userLogin(req, res) {
           VALUES (?, ?, NOW(), ?, ?);
         `;
 
-        const insertValues = [uuid, whatsappNumber, auth_token, otp];
+        const insertValues = [userId, whatsappNumber, auth_token, otp];
 
         dbConnection.query(insertQuery, insertValues, (insertError, insertResults) => {
           if (insertError) {
@@ -230,7 +230,7 @@ async function userLogin(req, res) {
           otpMap.delete(whatsappNumber);
           console.log('Login successful (new user).');
 
-          res.json({ success: true, message: 'Login successful (new user)', authToken: auth_token });
+          res.json({ success: true, message: 'Login successful (new user)',});
         });
       }
     });
@@ -239,6 +239,8 @@ async function userLogin(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
+
 
 
 
