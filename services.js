@@ -276,10 +276,9 @@ async function packageDetails(req, res) {
 async function fromAddress(req, res) {
   try {
     const { name, mobileNumber, address, city, pincode, locality } = req.body;
-    const { street, number } = address;
-
+    
     // Constructing the from_address string
-    const fromAddress = `${name}, ${mobileNumber}, ${street} ${number}, ${city}, ${pincode}, ${locality}`;
+    const fromAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
 
     const insertQuery = `
       INSERT INTO package_details (from_address)
@@ -310,7 +309,7 @@ async function toAddress(req, res) {
     const { street, number } = address;
 
     // Constructing the to_address string
-    const toAddress = `${name}, ${mobileNumber}, ${street} ${number}, ${city}, ${pincode}, ${locality}`;
+    const toAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
 
     const insertQuery = `
       INSERT INTO package_details (to_address)
