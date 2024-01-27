@@ -246,16 +246,16 @@ async function userLogin(req, res) {
 
 async function packageDetails(req, res) {
   try {
-    const { Weight, width, height } = req.body;
+    const { uuid, Weight, width, height } = req.body;
 
-    const amount = (Weight*10);
+    const amount = Weight * 10;
 
     const insertQuery = `
-      INSERT INTO package_details ( Weight,  height, width, amount)
-      VALUES ( ?, ?, ?, ?)
+      INSERT INTO package_details (uuid, Weight, height, width, amount)
+      VALUES (?, ?, ?, ?, ?)
     `;
 
-    const values = [ Weight,  height, width, amount];
+    const values = [uuid, Weight, height, width, amount];
 
     dbConnection.query(insertQuery, values, (error, results) => {
       if (error) {
@@ -275,27 +275,48 @@ async function packageDetails(req, res) {
 
 async function fromAddress(req, res) {
   try {
-    const { name, mobileNumber, address, city, pincode, locality } = req.body;
+    const { uuid, name, mobileNumber, address, city, pincode, locality } = req.body;
     
     // Constructing the from_address string
     const fromAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
 
-    const insertQuery = `
-      INSERT INTO package_details (from_address)
-      VALUES (?)
+    // Check if UUID exists in the database
+    const selectQuery = `
+      SELECT * FROM package_details WHERE uuid = ?
     `;
-
-    const values = [fromAddress];
-
-    dbConnection.query(insertQuery, values, (error, results) => {
-      if (error) {
-        console.error('Error inserting record:', error);
-        return res.status(500).json({ success: false, error: error.message });
+    dbConnection.query(selectQuery, [uuid], (selectError, selectResults) => {
+      if (selectError) {
+        console.error('Error querying record:', selectError);
+        return res.status(500).json({ success: false, error: selectError.message });
       }
 
-      console.log( results);
-
-      res.json({ success: true, message: 'sender details stored successfully' });
+      if (selectResults.length > 0) {
+        // UUID exists, update the from_address column
+        const updateQuery = `
+          UPDATE package_details SET from_address = ? WHERE uuid = ?
+        `;
+        dbConnection.query(updateQuery, [fromAddress, uuid], (updateError, updateResults) => {
+          if (updateError) {
+            console.error('Error updating record:', updateError);
+            return res.status(500).json({ success: false, error: updateError.message });
+          }
+          console.log('Record updated successfully:', updateResults);
+          res.json({ success: true, message: 'Sender details updated successfully' });
+        });
+      } else {
+        // UUID doesn't exist, insert a new row
+        const insertQuery = `
+          INSERT INTO package_details (uuid, from_address) VALUES (?, ?)
+        `;
+        dbConnection.query(insertQuery, [uuid, fromAddress], (insertError, insertResults) => {
+          if (insertError) {
+            console.error('Error inserting record:', insertError);
+            return res.status(500).json({ success: false, error: insertError.message });
+          }
+          console.log('Record inserted successfully:', insertResults);
+          res.json({ success: true, message: 'Sender details stored successfully' });
+        });
+      }
     });
   } catch (error) {
     console.error('Error in /from_address:', error);
@@ -305,34 +326,56 @@ async function fromAddress(req, res) {
 
 async function toAddress(req, res) {
   try {
-    const { name, mobileNumber, address, city, pincode, locality } = req.body;
+    const { uuid, name, mobileNumber, address, city, pincode, locality } = req.body;
     const { street, number } = address;
 
     // Constructing the to_address string
     const toAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
 
-    const insertQuery = `
-      INSERT INTO package_details (to_address)
-      VALUES (?)
+    // Check if UUID exists in the database
+    const selectQuery = `
+      SELECT * FROM package_details WHERE uuid = ?
     `;
-
-    const values = [toAddress];
-
-    dbConnection.query(insertQuery, values, (error, results) => {
-      if (error) {
-        console.error('Error inserting record:', error);
-        return res.status(500).json({ success: false, error: error.message });
+    dbConnection.query(selectQuery, [uuid], (selectError, selectResults) => {
+      if (selectError) {
+        console.error('Error querying record:', selectError);
+        return res.status(500).json({ success: false, error: selectError.message });
       }
 
-      console.log( results);
-
-      res.json({ success: true, message: 'receiver details stored successfully' });
+      if (selectResults.length > 0) {
+        // UUID exists, update the to_address column
+        const updateQuery = `
+          UPDATE package_details SET to_address = ? WHERE uuid = ?
+        `;
+        dbConnection.query(updateQuery, [toAddress, uuid], (updateError, updateResults) => {
+          if (updateError) {
+            console.error('Error updating record:', updateError);
+            return res.status(500).json({ success: false, error: updateError.message });
+          }
+          console.log('Record updated successfully:', updateResults);
+          res.json({ success: true, message: 'Receiver details updated successfully' });
+        });
+      } else {
+        // UUID doesn't exist, insert a new row
+        const insertQuery = `
+          INSERT INTO package_details (uuid, to_address) VALUES (?, ?)
+        `;
+        dbConnection.query(insertQuery, [uuid, toAddress], (insertError, insertResults) => {
+          if (insertError) {
+            console.error('Error inserting record:', insertError);
+            return res.status(500).json({ success: false, error: insertError.message });
+          }
+          console.log('Record inserted successfully:', insertResults);
+          res.json({ success: true, message: 'Receiver details stored successfully' });
+        });
+      }
     });
   } catch (error) {
     console.error('Error in /to_address:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
 
 
 module.exports = {
