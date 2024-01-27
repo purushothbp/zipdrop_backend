@@ -273,7 +273,67 @@ async function packageDetails(req, res) {
   }
 }
 
+async function fromAddress(req, res) {
+  try {
+    const { name, mobileNumber, address, city, pincode, locality } = req.body;
+    const { street, number } = address;
 
+    // Constructing the from_address string
+    const fromAddress = `${name}, ${mobileNumber}, ${street} ${number}, ${city}, ${pincode}, ${locality}`;
+
+    const insertQuery = `
+      INSERT INTO package_details (from_address)
+      VALUES (?)
+    `;
+
+    const values = [fromAddress];
+
+    dbConnection.query(insertQuery, values, (error, results) => {
+      if (error) {
+        console.error('Error inserting record:', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      console.log( results);
+
+      res.json({ success: true, message: 'sender details stored successfully' });
+    });
+  } catch (error) {
+    console.error('Error in /from_address:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function toAddress(req, res) {
+  try {
+    const { name, mobileNumber, address, city, pincode, locality } = req.body;
+    const { street, number } = address;
+
+    // Constructing the to_address string
+    const toAddress = `${name}, ${mobileNumber}, ${street} ${number}, ${city}, ${pincode}, ${locality}`;
+
+    const insertQuery = `
+      INSERT INTO package_details (to_address)
+      VALUES (?)
+    `;
+
+    const values = [toAddress];
+
+    dbConnection.query(insertQuery, values, (error, results) => {
+      if (error) {
+        console.error('Error inserting record:', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      console.log( results);
+
+      res.json({ success: true, message: 'receiver details stored successfully' });
+    });
+  } catch (error) {
+    console.error('Error in /to_address:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
 
 
 module.exports = {
@@ -281,5 +341,7 @@ module.exports = {
   otpGeneration,
   userLogin,
   resendOtp,
-  packageDetails
+  packageDetails,
+  fromAddress,
+  toAddress
 }
