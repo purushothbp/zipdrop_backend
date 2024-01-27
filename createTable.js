@@ -22,6 +22,7 @@ connection.connect((err) => {
     Mobile_Number VARCHAR(12),
     Date DATE,
     Auth_token VARCHAR(255),
+    uuid VARCHAR(36),
     Otp INT);`
     
   connection.query(createTableQuery, (error, results, fields) => {
