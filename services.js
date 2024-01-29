@@ -4,11 +4,11 @@ const bodyParser = require('body-parser');
 const config = require('./config.json');
 const express = require('express')
 const strings = require('./strings.json');
-const bcrypt = require('bcrypt');
 const mysql = require('mysql2');
 const crypto = require('crypto');
 const { promisify } = require('util');
 const { v4: uuidv4 } = require('uuid');
+const jwt = require ('jsonwebtoken');
 const app = express();
 
 app.use(bodyParser.json());
@@ -45,71 +45,97 @@ async function generateRandomToken(length = 256) {
 
 async function generateAuthToken() {
   const authToken = await generateRandomToken();
-  const saltRounds = 10;
 
   try {
-    const hashedToken = await bcrypt.hash(authToken, saltRounds);
+    const hashedToken = jwt.sign({}, authToken, {
+      expiresIn: config.LOGIN_EXPIRY
+    }) ;
     return hashedToken;
   } catch (error) {
     throw new Error('Error hashing the authentication token');
   }
 }
 
-async function otpGeneration(req, res)  {
+async function otpGeneration(req, res) {
   try {
     const { whatsappNumber } = req.body;
     console.log(whatsappNumber);
-    if (!whatsappNumber) {
-      return res.status(400).json({ success: false, message: strings.WhatsappNumberRequired });
+
+    if (!whatsappNumber || isNaN(Number(whatsappNumber))) {
+      return res.status(400).json({ success: false, message: "WhatsApp number must be a valid number." });
     }
-    else if (!whatsappNumber || whatsappNumber.length !== MAX_DIGITS) {
+
+    if (whatsappNumber.length !== MAX_DIGITS) {
       return res.status(400).json({ success: false, message: strings.InvalidNumber });
     }
-    const cooldownTimestamp = resendCooldownMap.get(whatsappNumber);
-    if (cooldownTimestamp && Date.now() - cooldownTimestamp < RESEND_COOLDOWN) {
-      const remainingCooldown = RESEND_COOLDOWN - (Date.now() - cooldownTimestamp);
-      return res.status(400).json({
-        success: false,
-        message: `Resend OTP cooldown active. Please wait ${remainingCooldown / 1000} seconds.`,
-      });
-    }
 
-    const otp = generateOTP();
-    const url = config.Api_Url
-    const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
+    const checkUserQuery = `
+      SELECT uuid, Auth_token FROM userlogin
+      WHERE Mobile_Number = ?;
+    `;
 
-
-    const response = await axios.post(
-      apiUrl,
-      {},
-      {
-        headers: {
-          Authorization: accessToken,
-          'Content-Type': 'application/json',
-        },
+    dbConnection.query(checkUserQuery, [whatsappNumber], async (error, results) => {
+      if (error) {
+        console.error('Error checking user existence:', error);
+        return res.status(500).json({ success: false, error: error.message });
       }
-    );
-    resendCooldownMap.set(whatsappNumber, Date.now());
 
-    otpMap.set(whatsappNumber, otp);
-    res.json({ success: true, otp });
+      if (results.length > 0) {
+        console.log('User found. Navigating to package_details page.');
+        const { uuid, Auth_token } = results[0];
+        return res.json({ success: true, message: 'User found. Navigating to package_details page.', uuid, authToken: Auth_token });
+      }
 
+      // If the user does not exist, generate OTP and return it
+      const cooldownTimestamp = resendCooldownMap.get(whatsappNumber);
+      if (cooldownTimestamp && Date.now() - cooldownTimestamp < RESEND_COOLDOWN) {
+        const remainingCooldown = RESEND_COOLDOWN - (Date.now() - cooldownTimestamp);
+        return res.status(400).json({
+          success: false,
+          message: `Resend OTP cooldown active. Please wait ${remainingCooldown / 1000} seconds.`,
+        });
+      }
+
+      const otp = generateOTP();
+      const url = config.Api_Url;
+      const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
+
+      const response = await axios.post(
+        apiUrl,
+        {},
+        {
+          headers: {
+            Authorization: accessToken,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      resendCooldownMap.set(whatsappNumber, Date.now());
+      otpMap.set(whatsappNumber, otp);
+      res.json({ success: true, otp });
+
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
 
-async function resendOtp (req, res) {
+
+
+async function resendOtp(req, res) {
   try {
     const { whatsappNumber } = req.body;
 
-    if (!whatsappNumber) {
-      return res.status(400).json({ success: false, message: strings.WhatsappNumberRequired });
+    if (!whatsappNumber || isNaN(Number(whatsappNumber))) {
+      return res.status(400).json({ success: false, message: "WhatsApp number must be a valid number." });
     }
-    else if (!whatsappNumber || whatsappNumber.length !== MAX_DIGITS) {
+
+    if (whatsappNumber.length !== MAX_DIGITS) {
       return res.status(400).json({ success: false, message: strings.InvalidNumber });
     }
+
     const cooldownTimestamp = resendCooldownMap.get(whatsappNumber);
     if (cooldownTimestamp && Date.now() - cooldownTimestamp < RESEND_COOLDOWN) {
       const remainingCooldown = RESEND_COOLDOWN - (Date.now() - cooldownTimestamp);
@@ -142,7 +168,6 @@ async function resendOtp (req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
-
 
 
 async function userLogin(req, res) {
@@ -151,9 +176,10 @@ async function userLogin(req, res) {
 
     console.log('Received login request:', { whatsappNumber, otp });
 
-    if (!whatsappNumber || whatsappNumber.length !== MAX_DIGITS || !otp) {
+    // Check if whatsappNumber and otp are provided and are numbers
+    if (!whatsappNumber || isNaN(Number(whatsappNumber)) || whatsappNumber.length !== MAX_DIGITS || !otp || isNaN(Number(otp))) {
       console.log('Invalid input. Returning error.');
-      return res.status(400).json({ success: false, message: strings.InvalidInput });
+      return res.status(400).json({ success: false, message: "Invalid input. WhatsApp number and OTP must be valid numbers." });
     }
 
     const storedOTP = otpMap.get(whatsappNumber);
@@ -242,7 +268,6 @@ async function userLogin(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
-
 
 async function packageDetails(req, res) {
   try {
@@ -375,6 +400,7 @@ async function toAddress(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
 
 
 
