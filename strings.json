@@ -3,5 +3,6 @@
     "OtpError" : "Error sending OTP",
     "LoginSuccessful" : "Login successful",
     "WhatsappNumberRequired" : "WhatsApp number is required in the request.",
-    "InvalidNumber" : "Invalid whatsappNumber format" 
+    "InvalidNumber" : "Invalid whatsappNumber format",
+    "ServerError":"Internal server error"
 }

@@ -7,6 +7,8 @@
     "DB_USER":"root",
     "DB_NAME":"zipdrop",
     "DB_PASSWORD":"Zipdrop@123",
-    "LOGIN_EXPIRY" : "6h"
+    "LOGIN_EXPIRY" : "6h",
+    "RAZORPAY_KEY_ID": "rzp_test_zW90bvvW3o3Bxn",
+    "RAZORPAY_SECRET_KEY":"wJvWrKVL6GWGxW5iHugtKrXo"
 }
 

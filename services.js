@@ -9,9 +9,12 @@ const crypto = require('crypto');
 const { promisify } = require('util');
 const { v4: uuidv4 } = require('uuid');
 const jwt = require ('jsonwebtoken');
+const Razorpay = require('razorpay');
 const app = express();
 
 app.use(bodyParser.json());
+app.use(express.json);
+app.use(express.urlencoded({extended: false}));
 app.use(cors());
 
 const dbConnection = mysql.createConnection({
@@ -122,8 +125,6 @@ async function otpGeneration(req, res) {
   }
 }
 
-
-
 async function resendOtp(req, res) {
   try {
     const { whatsappNumber } = req.body;
@@ -168,7 +169,6 @@ async function resendOtp(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
-
 
 async function userLogin(req, res) {
   try {
@@ -235,7 +235,7 @@ async function userLogin(req, res) {
           otpMap.delete(whatsappNumber); // Clear OTP from the temporary map
           console.log('Login successful (existing user).');
 
-          res.json({ success: true, message: 'Login successful (existing user)', uuid, authToken: auth_token });
+          res.json({ success: true, message: 'Login successful (existing user)', authToken: auth_token });
         });
       } else {
         // If the user does not exist, inserting a new record to the table
@@ -271,16 +271,16 @@ async function userLogin(req, res) {
 
 async function packageDetails(req, res) {
   try {
-    const { uuid, Weight, width, height } = req.body;
+    const { authToken, Weight, width, height } = req.body;
 
     const amount = Weight * 10;
 
     const insertQuery = `
-      INSERT INTO package_details (uuid, Weight, height, width, amount)
+      INSERT INTO package_details (authToken, Weight, height, width, amount)
       VALUES (?, ?, ?, ?, ?)
     `;
 
-    const values = [uuid, Weight, height, width, amount];
+    const values = [authToken, Weight, height, width, amount];
 
     dbConnection.query(insertQuery, values, (error, results) => {
       if (error) {
@@ -307,9 +307,9 @@ async function fromAddress(req, res) {
 
     // Check if UUID exists in the database
     const selectQuery = `
-      SELECT * FROM package_details WHERE uuid = ?
+      SELECT * FROM package_details WHERE authToken = ?
     `;
-    dbConnection.query(selectQuery, [uuid], (selectError, selectResults) => {
+    dbConnection.query(selectQuery, [authToken], (selectError, selectResults) => {
       if (selectError) {
         console.error('Error querying record:', selectError);
         return res.status(500).json({ success: false, error: selectError.message });
@@ -318,9 +318,9 @@ async function fromAddress(req, res) {
       if (selectResults.length > 0) {
         // UUID exists, update the from_address column
         const updateQuery = `
-          UPDATE package_details SET from_address = ? WHERE uuid = ?
+          UPDATE package_details SET from_address = ? WHERE authToken = ?
         `;
-        dbConnection.query(updateQuery, [fromAddress, uuid], (updateError, updateResults) => {
+        dbConnection.query(updateQuery, [fromAddress, authToken], (updateError, updateResults) => {
           if (updateError) {
             console.error('Error updating record:', updateError);
             return res.status(500).json({ success: false, error: updateError.message });
@@ -331,9 +331,9 @@ async function fromAddress(req, res) {
       } else {
         // UUID doesn't exist, insert a new row
         const insertQuery = `
-          INSERT INTO package_details (uuid, from_address) VALUES (?, ?)
+          INSERT INTO package_details (authToken, from_address) VALUES (?, ?)
         `;
-        dbConnection.query(insertQuery, [uuid, fromAddress], (insertError, insertResults) => {
+        dbConnection.query(insertQuery, [authToken, fromAddress], (insertError, insertResults) => {
           if (insertError) {
             console.error('Error inserting record:', insertError);
             return res.status(500).json({ success: false, error: insertError.message });
@@ -351,7 +351,7 @@ async function fromAddress(req, res) {
 
 async function toAddress(req, res) {
   try {
-    const { uuid, name, mobileNumber, address, city, pincode, locality } = req.body;
+    const { authToken, name, mobileNumber, address, city, pincode, locality } = req.body;
     const { street, number } = address;
 
     // Constructing the to_address string
@@ -359,9 +359,9 @@ async function toAddress(req, res) {
 
     // Check if UUID exists in the database
     const selectQuery = `
-      SELECT * FROM package_details WHERE uuid = ?
+      SELECT * FROM package_details WHERE authToken = ?
     `;
-    dbConnection.query(selectQuery, [uuid], (selectError, selectResults) => {
+    dbConnection.query(selectQuery, [authToken], (selectError, selectResults) => {
       if (selectError) {
         console.error('Error querying record:', selectError);
         return res.status(500).json({ success: false, error: selectError.message });
@@ -370,9 +370,9 @@ async function toAddress(req, res) {
       if (selectResults.length > 0) {
         // UUID exists, update the to_address column
         const updateQuery = `
-          UPDATE package_details SET to_address = ? WHERE uuid = ?
+          UPDATE package_details SET to_address = ? WHERE authToken = ?
         `;
-        dbConnection.query(updateQuery, [toAddress, uuid], (updateError, updateResults) => {
+        dbConnection.query(updateQuery, [toAddress, authToken], (updateError, updateResults) => {
           if (updateError) {
             console.error('Error updating record:', updateError);
             return res.status(500).json({ success: false, error: updateError.message });
@@ -383,9 +383,9 @@ async function toAddress(req, res) {
       } else {
         // UUID doesn't exist, insert a new row
         const insertQuery = `
-          INSERT INTO package_details (uuid, to_address) VALUES (?, ?)
+          INSERT INTO package_details (authToken, to_address) VALUES (?, ?)
         `;
-        dbConnection.query(insertQuery, [uuid, toAddress], (insertError, insertResults) => {
+        dbConnection.query(insertQuery, [authToken, toAddress], (insertError, insertResults) => {
           if (insertError) {
             console.error('Error inserting record:', insertError);
             return res.status(500).json({ success: false, error: insertError.message });
@@ -401,7 +401,27 @@ async function toAddress(req, res) {
   }
 }
 
+async function orders(req, res){
+  try {
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_SECRET,
+    });
 
+    const options = req.body;
+    const order = await razorpay.orders.create(options);
+
+    if (!order) {
+      return res.status(500).send("Error");
+    }
+
+    res.json(order);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error");
+  }
+
+}
 
 
 module.exports = {
@@ -411,5 +431,6 @@ module.exports = {
   resendOtp,
   packageDetails,
   fromAddress,
-  toAddress
+  toAddress,
+  orders
 }

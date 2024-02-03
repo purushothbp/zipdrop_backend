@@ -8,6 +8,7 @@ const sendOtp = require("../routes/sendotpRoute");
 const package_details = require("../routes/package_details");
 const from_address = require("../routes/fromAddress");
 const to_address = require("../routes/toAddress");
+const orders = require("../routes/razorpay");
 
 
 const app = express();
@@ -22,6 +23,7 @@ app.use('/', loginRoute);
 app.use('/', package_details);
 app.use('/', from_address);
 app.use('/', to_address);
+app.use('/', orders);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
