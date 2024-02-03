@@ -23,7 +23,6 @@ app.use('/', loginRoute);
 app.use('/', package_details);
 app.use('/', from_address);
 app.use('/', to_address);
-app.use('/', orders);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

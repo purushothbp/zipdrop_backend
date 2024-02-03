@@ -300,8 +300,11 @@ async function packageDetails(req, res) {
 
 async function fromAddress(req, res) {
   try {
-    const { authToken, name, mobileNumber, address, city, pincode, locality } = req.body;
-    
+    // Retrieve authToken from headers
+    const authToken = req.headers.authorization.replace('Bearer ', ''); // Extracting token from Authorization header
+
+    const { name, mobileNumber, address, city, pincode, locality } = req.body;
+
     // Constructing the from_address string
     const fromAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
 
@@ -348,6 +351,7 @@ async function fromAddress(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
 
 async function toAddress(req, res) {
   try {
