@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "nodemon ./routes/loginRoute/login.js && npm run sentry:sourcemaps",
+    "start": "nodemon ./src/server.js",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org zipdrop --project zipdrop_backend routes/loginRoute && sentry-cli sourcemaps upload --org zipdrop --project zipdrop_backend routes/loginRoute"
   },
   "dependencies": {
@@ -15,6 +15,7 @@
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "debug": "~2.6.9",
+    "dotenv": "^16.4.1",
     "express": "^4.18.2",
     "http-errors": "~1.6.3",
     "jsonwebtoken": "^9.0.2",

@@ -1,39 +1,36 @@
+const jwt = require('jsonwebtoken')
+require('dotenv').config();
 
-const crypto = require('crypto');
 
 
 function generateAuthToken(uuid, whatsappNumber) {
-    const secret = 'zipdrop'; 
-    const data = uuid + '|' + whatsappNumber;
-    const hmac = crypto.createHmac('sha256', secret);
-    hmac.update(data);
-    return hmac.digest('hex');
-  }
-function verifyAuthToken(authToken) {
+    const secret = process.env.SECRET_FOR_ENCR_DECR;
+    const options = {
+        expiresIn: '10m'
+    };
+    const token = jwt.sign({uuid, whatsappNumber}, secret, options );
+    console.log("token: ",token);
+    return token;
+}
+
+function decryptAuthToken(token) {
     const secret = 'zipdrop';
-    const decipher = crypto.createDecipheriv('aes256', secret);
-    let decrypted = decipher.update(authToken, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    const [uuid, whatsappNumber, timestamp] = decrypted.split('|');
-    const expirationTime = 30 * 60 * 1000; // 30 minutes in milliseconds
-    const currentTime = Date.now();
-    if (currentTime - parseInt(timestamp) > expirationTime) {
-        return { valid: false, message: 'Token has expired' };
+    try {
+        const decryptedData = jwt.verify(token, secret);
+        console.log(decryptedData);
+        return decryptedData;
+    } catch (error) {
+        console.error('Token verification failed:', error);
+        return null;
     }
-    return { valid: true, uuid, whatsappNumber };
 }
 
-function decryptAuthToken(authToken) {
-    const secret = 'zipdrop';
-    const decipher = crypto.createDecipheriv('aes256', secret);
-    let decrypted = decipher.update(authToken, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    const [uuid, whatsappNumber] = decrypted.split('|');
-    return { uuid, whatsappNumber };
-}
 
-  module.exports = {
+module.exports = {
     generateAuthToken,
-    verifyAuthToken,
     decryptAuthToken
-  }
+}
+
+// generateAuthToken("kagre6ttrby32w","916382331949")
+
+//  decryptAuthToken("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoia2FncmU2dHRyYnkzMnd8OTE2MzgyMzMxOTQ5IiwiaWF0IjoxNzA2OTUyODQ4LCJleHAiOjE3MDY5NTQ2NDh9.H05z4Zi85ODBGaWdeyhXr8MuOoemDvg_4x13lBR7DsI");

@@ -1,7 +1,7 @@
+require('dotenv').config();
 const cors = require('cors');
 const axios = require('axios');
 const bodyParser = require('body-parser');
-const config = require('./config.json');
 const express = require('express')
 const strings = require('./strings.json');
 const mysql = require('mysql2');
@@ -18,18 +18,17 @@ app.use(express.urlencoded({extended: false}));
 app.use(cors());
 
 const dbConnection = mysql.createConnection({
-  host: config.DB_HOST,
-  user: config.DB_USER,
-  password: config.DB_PASSWORD,
-  database:config.DB_NAME,
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database:process.env.DB_NAME,
 });
 
-const accessToken = config.ACCESS_TOKEN;
+const accessToken = process.env.ACCESS_TOKEN;
 const MAX_DIGITS = 12; //number of digits need to present in mobileNumber
 const RESEND_COOLDOWN = 30000; // 30 seconds in milliseconds
 let resendCooldownMap = new Map();
 let otpMap = new Map();
-
 
 // Function to generate OTP
 function generateOTP() {
@@ -40,11 +39,9 @@ function generateOTP() {
 }
 
 
-
 async function otpGeneration(req, res) {
   try {
     const { whatsappNumber } = req.body;
-    console.log(whatsappNumber);
 
     if (!whatsappNumber || isNaN(Number(whatsappNumber))) {
       return res.status(400).json({ success: false, message: "WhatsApp number must be a valid number." });
@@ -65,10 +62,22 @@ async function otpGeneration(req, res) {
         return res.status(500).json({ success: false, error: error.message });
       }
 
+      // Check if the user exists
       if (results.length > 0) {
-        console.log('User found. Navigating to package_details page.');
         const { uuid, Auth_token } = results[0];
-        return res.json({ success: true, message: 'User found. Navigating to package_details page.', uuid, authToken: Auth_token });
+        const { data, exp } = decryptAuthToken(Auth_token);
+
+        if (exp && exp <= Date.now()) {
+          console.log('Token expired. Generating new OTP.');
+          const otp = generateOTP();
+          resendCooldownMap.set(whatsappNumber, Date.now());
+          otpMap.set(whatsappNumber, otp);
+          return res.json({ success: true, otp });
+        } else {
+          // Token is valid, return existing auth token
+          console.log('Token valid. Returning existing auth token.');
+          return res.json({ success: true, message: 'User found. Navigating to package_details page.',  authToken: Auth_token });
+        }
       }
 
       // If the user does not exist, generate OTP and return it
@@ -82,7 +91,7 @@ async function otpGeneration(req, res) {
       }
 
       const otp = generateOTP();
-      const url = config.Api_Url;
+      const url = process.env.Api_Url;
       const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
 
       const response = await axios.post(
@@ -129,7 +138,7 @@ async function resendOtp(req, res) {
     }
 
     const otp = generateOTP();
-    const url = config.Api_Url
+    const url = process.env.Api_Url
     const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
 
     const response = await axios.post(
@@ -184,10 +193,9 @@ async function userLogin(req, res) {
       }
 
       let auth_token;
-      let uuid;
-
+      let uuid = checkUserQuery;
       try {
-        auth_token = await enc.generateAuthToken;
+        auth_token = await enc.generateAuthToken(uuid, whatsappNumber);
         console.log('Generated Hashed Token:', auth_token);
       } catch (error) {
         console.error('Error generating hashed token:', error.message);
@@ -254,17 +262,17 @@ async function userLogin(req, res) {
 async function packageDetails(req, res) {
   try {
     const authToken = req.headers.authorization.replace('Bearer ', '');
-    const decrypted = await enc.decryptAuthToken;
-    console.log(decrypted);
+    const decrypted = await enc.decryptAuthToken(authToken);
+    let uuid = decrypted.uuid;
     const {  Weight, width, height } = req.body;
 
     const amount = Weight * 10;
     const insertQuery = `
-      INSERT INTO package_details (authToken, Weight, height, width, amount)
+      INSERT INTO package_details (uuid, Weight, height, width, amount)
       VALUES (?, ?, ?, ?, ?)
     `;
 
-    const values = [authToken, Weight, height, width, amount];
+    const values = [uuid, Weight, height, width, amount];
 
     dbConnection.query(insertQuery, values, (error, results) => {
       if (error) {
@@ -286,7 +294,7 @@ async function fromAddress(req, res) {
   try {
     // Retrieve authToken from headers
     const authToken = req.headers.authorization.replace('Bearer ', ''); // Extracting token from Authorization header
-
+    let uuid = enc.decryptAuthToken(authToken).uuid;
     const { name, mobileNumber, address, city, pincode, locality } = req.body;
 
     // Constructing the from_address string
@@ -294,9 +302,9 @@ async function fromAddress(req, res) {
 
     // Check if UUID exists in the database
     const selectQuery = `
-      SELECT * FROM package_details WHERE authToken = ?
+      SELECT * FROM package_details WHERE uuid = ?
     `;
-    dbConnection.query(selectQuery, [authToken], (selectError, selectResults) => {
+    dbConnection.query(selectQuery, [uuid], (selectError, selectResults) => {
       if (selectError) {
         console.error('Error querying record:', selectError);
         return res.status(500).json({ success: false, error: selectError.message });
@@ -305,9 +313,9 @@ async function fromAddress(req, res) {
       if (selectResults.length > 0) {
         // UUID exists, update the from_address column
         const updateQuery = `
-          UPDATE package_details SET from_address = ? WHERE authToken = ?
+          UPDATE package_details SET from_address = ? WHERE uuid = ?
         `;
-        dbConnection.query(updateQuery, [fromAddress, authToken], (updateError, updateResults) => {
+        dbConnection.query(updateQuery, [fromAddress, uuid], (updateError, updateResults) => {
           if (updateError) {
             console.error('Error updating record:', updateError);
             return res.status(500).json({ success: false, error: updateError.message });
@@ -318,9 +326,9 @@ async function fromAddress(req, res) {
       } else {
         // UUID doesn't exist, insert a new row
         const insertQuery = `
-          INSERT INTO package_details (authToken, from_address) VALUES (?, ?)
+          INSERT INTO package_details (uuid, from_address) VALUES (?, ?)
         `;
-        dbConnection.query(insertQuery, [authToken, fromAddress], (insertError, insertResults) => {
+        dbConnection.query(insertQuery, [uuid, fromAddress], (insertError, insertResults) => {
           if (insertError) {
             console.error('Error inserting record:', insertError);
             return res.status(500).json({ success: false, error: insertError.message });
@@ -421,3 +429,4 @@ module.exports = {
   toAddress,
   orders
 }
+
