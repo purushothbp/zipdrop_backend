@@ -252,7 +252,6 @@ async function packageDetails(req, res) {
     const {  Weight, width, height } = req.body;
 
     const amount = Weight * 10;
-
     const insertQuery = `
       INSERT INTO package_details (authToken, Weight, height, width, amount)
       VALUES (?, ?, ?, ?, ?)
