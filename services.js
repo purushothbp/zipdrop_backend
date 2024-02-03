@@ -356,7 +356,6 @@ async function fromAddress(req, res) {
 async function toAddress(req, res) {
   try {
     const { authToken, name, mobileNumber, address, city, pincode, locality } = req.body;
-    const { street, number } = address;
 
     // Constructing the to_address string
     const toAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
