@@ -5,12 +5,12 @@ const config = require('./config.json');
 const express = require('express')
 const strings = require('./strings.json');
 const mysql = require('mysql2');
-const crypto = require('crypto');
 const { promisify } = require('util');
 const { v4: uuidv4 } = require('uuid');
 const jwt = require ('jsonwebtoken');
 const Razorpay = require('razorpay');
 const app = express();
+const enc = require('./encryptions');
 
 app.use(bodyParser.json());
 app.use(express.json);
@@ -32,32 +32,7 @@ let otpMap = new Map();
 
 
 // Function to generate OTP
-function generateOTP() {
-  const min = 100000; 
-  const max = 999999; 
-  const otp = Math.floor(Math.random() * (max - min + 1)) + min;
-  return otp.toString(); 
-}
 
-const randomBytesAsync = promisify(crypto.randomBytes);
-
-async function generateRandomToken(length = 256) {
-  const randomBytes = await randomBytesAsync(length);
-  return randomBytes.toString('hex');
-}
-
-async function generateAuthToken() {
-  const authToken = await generateRandomToken();
-
-  try {
-    const hashedToken = jwt.sign({}, authToken, {
-      expiresIn: config.LOGIN_EXPIRY
-    }) ;
-    return hashedToken;
-  } catch (error) {
-    throw new Error('Error hashing the authentication token');
-  }
-}
 
 async function otpGeneration(req, res) {
   try {
@@ -99,7 +74,7 @@ async function otpGeneration(req, res) {
         });
       }
 
-      const otp = generateOTP();
+      const otp = enc.generateOTP;
       const url = config.Api_Url;
       const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
 
@@ -146,7 +121,7 @@ async function resendOtp(req, res) {
       });
     }
 
-    const otp = generateOTP();
+    const otp = enc.generateOTP;
     const url = config.Api_Url
     const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
 
@@ -205,7 +180,7 @@ async function userLogin(req, res) {
       let uuid;
 
       try {
-        auth_token = await generateAuthToken();
+        auth_token = await enc.generateAuthToken;
         console.log('Generated Hashed Token:', auth_token);
       } catch (error) {
         console.error('Error generating hashed token:', error.message);
@@ -272,6 +247,8 @@ async function userLogin(req, res) {
 async function packageDetails(req, res) {
   try {
     const authToken = req.headers.authorization.replace('Bearer ', '');
+    const decrypted = await enc.decryptAuthToken;
+    console.log(decrypted);
     const {  Weight, width, height } = req.body;
 
     const amount = Weight * 10;
@@ -430,7 +407,6 @@ async function orders(req, res){
 
 
 module.exports = {
-  generateOTP,
   otpGeneration,
   userLogin,
   resendOtp,
