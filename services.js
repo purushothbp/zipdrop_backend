@@ -271,7 +271,8 @@ async function userLogin(req, res) {
 
 async function packageDetails(req, res) {
   try {
-    const { authToken, Weight, width, height } = req.body;
+    const authToken = req.headers.authorization.replace('Bearer ', '');
+    const {  Weight, width, height } = req.body;
 
     const amount = Weight * 10;
 
@@ -355,7 +356,8 @@ async function fromAddress(req, res) {
 
 async function toAddress(req, res) {
   try {
-    const { authToken, name, mobileNumber, address, city, pincode, locality } = req.body;
+    const authToken = req.headers.authorization.replace('Bearer ', '');
+    const {  name, mobileNumber, address, city, pincode, locality } = req.body;
 
     // Constructing the to_address string
     const toAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
