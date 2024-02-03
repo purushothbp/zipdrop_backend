@@ -32,6 +32,13 @@ let otpMap = new Map();
 
 
 // Function to generate OTP
+function generateOTP() {
+  const min = 100000; 
+  const max = 999999; 
+  const otp = Math.floor(Math.random() * (max - min + 1)) + min;
+  return otp.toString(); 
+}
+
 
 
 async function otpGeneration(req, res) {
@@ -74,7 +81,7 @@ async function otpGeneration(req, res) {
         });
       }
 
-      const otp = enc.generateOTP;
+      const otp = generateOTP();
       const url = config.Api_Url;
       const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
 
@@ -121,7 +128,7 @@ async function resendOtp(req, res) {
       });
     }
 
-    const otp = enc.generateOTP;
+    const otp = generateOTP();
     const url = config.Api_Url
     const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
 

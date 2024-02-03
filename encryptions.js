@@ -31,16 +31,9 @@ function decryptAuthToken(authToken) {
     const [uuid, whatsappNumber] = decrypted.split('|');
     return { uuid, whatsappNumber };
 }
-function generateOTP() {
-    const min = 100000; 
-    const max = 999999; 
-    const otp = Math.floor(Math.random() * (max - min + 1)) + min;
-    return otp.toString(); 
-  }
 
   module.exports = {
     generateAuthToken,
     verifyAuthToken,
-    generateOTP,
     decryptAuthToken
   }
