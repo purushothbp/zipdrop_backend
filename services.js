@@ -300,7 +300,7 @@ async function packageDetails(req, res) {
 
 async function fromAddress(req, res) {
   try {
-    const { uuid, name, mobileNumber, address, city, pincode, locality } = req.body;
+    const { authToken, name, mobileNumber, address, city, pincode, locality } = req.body;
     
     // Constructing the from_address string
     const fromAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
