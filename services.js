@@ -65,7 +65,7 @@ async function otpGeneration(req, res) {
       // Check if the user exists
       if (results.length > 0) {
         const { uuid, Auth_token } = results[0];
-        const { data, exp } = decryptAuthToken(Auth_token);
+        const exp  = enc.decryptAuthToken(Auth_token);
 
         if (exp && exp <= Date.now()) {
           console.log('Token expired. Generating new OTP.');
@@ -76,7 +76,7 @@ async function otpGeneration(req, res) {
         } else {
           // Token is valid, return existing auth token
           console.log('Token valid. Returning existing auth token.');
-          return res.json({ success: true, message: 'User found. Navigating to package_details page.',  authToken: Auth_token });
+          return res.json({ success: true, message: 'User found. Navigating to package_details page.', authToken: Auth_token });
         }
       }
 
@@ -115,6 +115,7 @@ async function otpGeneration(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
 
 async function resendOtp(req, res) {
   try {
@@ -182,7 +183,7 @@ async function userLogin(req, res) {
 
     // Query to check if the user already exists in the table or not
     const checkUserQuery = `
-      SELECT uuid FROM userlogin
+      SELECT uuid, auth_token FROM userlogin
       WHERE Mobile_Number = ?;
     `;
 
@@ -193,7 +194,14 @@ async function userLogin(req, res) {
       }
 
       let auth_token;
-      let uuid = checkUserQuery;
+      let uuid;
+
+      if (results.length > 0) {
+        uuid = results[0].uuid;
+      } else {
+        uuid = await uuidv4();
+      }
+
       try {
         auth_token = await enc.generateAuthToken(uuid, whatsappNumber);
         console.log('Generated Hashed Token:', auth_token);
@@ -202,56 +210,32 @@ async function userLogin(req, res) {
         return res.status(500).json({ success: false, error: 'Error generating hashed token' });
       }
 
-      // If the user exists, get the existing UUID
-      if (results.length > 0) {
-        uuid = results[0].uuid;
+      const operation = results.length > 0 ? 'updated' : 'inserted';
 
-        const updateQuery = `
-          UPDATE userlogin
-          SET Date = NOW(), Auth_token = ?, Otp = ?
-          WHERE Mobile_Number = ?;
-        `;
+      const query = results.length > 0 ? `
+        UPDATE userlogin
+        SET Date = NOW(), Auth_token = ?, Otp = ?
+        WHERE Mobile_Number = ?;
+      ` : `
+        INSERT INTO userlogin (uuid, Mobile_Number, Date, Auth_token, Otp)
+        VALUES (?, ?, NOW(), ?, ?);
+      `;
 
-        const updateValues = [auth_token, otp, whatsappNumber];
+      const values = results.length > 0 ? [auth_token, otp, whatsappNumber] : [uuid, whatsappNumber, auth_token, otp];
 
-        dbConnection.query(updateQuery, updateValues, (updateError, updateResults) => {
-          if (updateError) {
-            console.error('Error updating record:', updateError);
-            return res.status(500).json({ success: false, error: updateError.message });
-          }
+      dbConnection.query(query, values, (queryError, queryResults) => {
+        if (queryError) {
+          console.error(`Error ${operation} record:`, queryError);
+          return res.status(500).json({ success: false, error: queryError.message });
+        }
 
-          console.log('Record updated successfully:', updateResults);
+        console.log(`Record ${operation} successfully:`, queryResults);
 
-          otpMap.delete(whatsappNumber); // Clear OTP from the temporary map
-          console.log('Login successful (existing user).');
+        otpMap.delete(whatsappNumber); // Clear OTP from the temporary map
+        const message = `Login successful (${operation === 'inserted' ? 'new user' : 'existing user'})`;
 
-          res.json({ success: true, message: 'Login successful (existing user)', authToken: auth_token });
-        });
-      } else {
-        // If the user does not exist, inserting a new record to the table
-        uuid = uuidv4();
-
-        const insertQuery = `
-          INSERT INTO userlogin (uuid, Mobile_Number, Date, Auth_token, Otp)
-          VALUES (?, ?, NOW(), ?, ?);
-        `;
-
-        const insertValues = [uuid, whatsappNumber, auth_token, otp];
-
-        dbConnection.query(insertQuery, insertValues, (insertError, insertResults) => {
-          if (insertError) {
-            console.error('Error inserting record:', insertError);
-            return res.status(500).json({ success: false, error: insertError.message });
-          }
-
-          console.log('Record inserted successfully:', insertResults);
-
-          otpMap.delete(whatsappNumber);
-          console.log('Login successful (new user).');
-
-          res.json({ success: true, message: 'Login successful (new user)', uuid, authToken: auth_token });
-        });
-      }
+        res.json({ success: true, message, uuid, authToken: auth_token });
+      });
     });
   } catch (error) {
     console.error('Error in /login:', error);
@@ -259,11 +243,13 @@ async function userLogin(req, res) {
   }
 }
 
+
 async function packageDetails(req, res) {
   try {
     const authToken = req.headers.authorization.replace('Bearer ', '');
     const decrypted = await enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
+    console.log(uuid);
     const {  Weight, width, height } = req.body;
 
     const amount = Weight * 10;
@@ -294,7 +280,10 @@ async function fromAddress(req, res) {
   try {
     // Retrieve authToken from headers
     const authToken = req.headers.authorization.replace('Bearer ', ''); // Extracting token from Authorization header
-    let uuid = enc.decryptAuthToken(authToken).uuid;
+    const decrypted = await enc.decryptAuthToken(authToken);
+    let uuid = decrypted.uuid;
+    console.log(uuid);
+
     const { name, mobileNumber, address, city, pincode, locality } = req.body;
 
     // Constructing the from_address string
@@ -348,6 +337,10 @@ async function fromAddress(req, res) {
 async function toAddress(req, res) {
   try {
     const authToken = req.headers.authorization.replace('Bearer ', '');
+    const decrypted = await enc.decryptAuthToken(authToken);
+    let uuid = decrypted.uuid;
+    console.log(uuid);
+
     const {  name, mobileNumber, address, city, pincode, locality } = req.body;
 
     // Constructing the to_address string
