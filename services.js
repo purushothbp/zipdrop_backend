@@ -67,9 +67,10 @@ async function otpGeneration(req, res) {
         const { uuid, Auth_token } = results[0];
         const { iat, exp } = enc.decryptAuthToken(Auth_token);
 
-        const currentTime = new Date(); // Convert to seconds
+        const currentTime = new Date().getTime();// Convert to seconds
+        // var dateNow = new Date();
 
-        if ( exp <=currentTime.getTime()) {
+        if ( exp <= currentTime) {
           console.log('Token expired. Generating new OTP.');
         
           // Calculate the difference between the current time and the token expiration time
