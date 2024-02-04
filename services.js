@@ -65,15 +65,23 @@ async function otpGeneration(req, res) {
       // Check if the user exists
       if (results.length > 0) {
         const { uuid, Auth_token } = results[0];
-        const exp  = enc.decryptAuthToken(Auth_token);
+        const { iat, exp } = enc.decryptAuthToken(Auth_token);
 
-        if (exp && exp <= Date.now()) {
+        const currentTime = new Date(); // Convert to seconds
+
+        if ( exp <=currentTime.getTime()) {
           console.log('Token expired. Generating new OTP.');
+        
+          // Calculate the difference between the current time and the token expiration time
+          const timeDifference = currentTime - exp;
+          const otpExpirationTime = Date.now() + timeDifference;
+        
           const otp = generateOTP();
           resendCooldownMap.set(whatsappNumber, Date.now());
           otpMap.set(whatsappNumber, otp);
           return res.json({ success: true, otp });
-        } else {
+        }
+         else {
           // Token is valid, return existing auth token
           console.log('Token valid. Returning existing auth token.');
           return res.json({ success: true, message: 'User found. Navigating to package_details page.', authToken: Auth_token });
@@ -243,7 +251,6 @@ async function userLogin(req, res) {
   }
 }
 
-
 async function packageDetails(req, res) {
   try {
     const authToken = req.headers.authorization.replace('Bearer ', '');
@@ -348,9 +355,9 @@ async function toAddress(req, res) {
 
     // Check if UUID exists in the database
     const selectQuery = `
-      SELECT * FROM package_details WHERE authToken = ?
+      SELECT * FROM package_details WHERE uuid = ?
     `;
-    dbConnection.query(selectQuery, [authToken], (selectError, selectResults) => {
+    dbConnection.query(selectQuery, [uuid], (selectError, selectResults) => {
       if (selectError) {
         console.error('Error querying record:', selectError);
         return res.status(500).json({ success: false, error: selectError.message });
@@ -359,9 +366,9 @@ async function toAddress(req, res) {
       if (selectResults.length > 0) {
         // UUID exists, update the to_address column
         const updateQuery = `
-          UPDATE package_details SET to_address = ? WHERE authToken = ?
+          UPDATE package_details SET to_address = ? WHERE uuid = ?
         `;
-        dbConnection.query(updateQuery, [toAddress, authToken], (updateError, updateResults) => {
+        dbConnection.query(updateQuery, [toAddress, uuid], (updateError, updateResults) => {
           if (updateError) {
             console.error('Error updating record:', updateError);
             return res.status(500).json({ success: false, error: updateError.message });
@@ -372,9 +379,9 @@ async function toAddress(req, res) {
       } else {
         // UUID doesn't exist, insert a new row
         const insertQuery = `
-          INSERT INTO package_details (authToken, to_address) VALUES (?, ?)
+          INSERT INTO package_details (uuid, to_address) VALUES (?, ?)
         `;
-        dbConnection.query(insertQuery, [authToken, toAddress], (insertError, insertResults) => {
+        dbConnection.query(insertQuery, [uuid, toAddress], (insertError, insertResults) => {
           if (insertError) {
             console.error('Error inserting record:', insertError);
             return res.status(500).json({ success: false, error: insertError.message });

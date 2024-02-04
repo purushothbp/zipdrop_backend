@@ -7,7 +7,7 @@ function generateAuthToken(uuid, whatsappNumber) {
     const secret = process.env.SECRET_FOR_ENCR_DECR;
     const currentTime = new Date().getTime();
     const options = {
-        expiresIn: '10m'
+        expiresIn: "120s"
     };
     const token = jwt.sign({ uuid, whatsappNumber, iat: currentTime }, secret, options);
     console.log("token: ", token);
