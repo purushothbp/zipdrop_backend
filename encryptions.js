@@ -5,11 +5,8 @@ require('dotenv').config();
 
 function generateAuthToken(uuid, whatsappNumber) {
     const secret = process.env.SECRET_FOR_ENCR_DECR;
-    const currentTime = new Date().getTime();
-    const options = {
-        expiresIn: "60s"
-    };
-    const token = jwt.sign({ uuid, whatsappNumber, iat: currentTime }, secret, options);
+    const expirationTime = Math.floor(new Date().getTime() / 1000) + 60;
+    const token = jwt.sign({ uuid, whatsappNumber }, secret, {expiresIn: expirationTime});
     console.log("token: ", token);
     return token;
 }

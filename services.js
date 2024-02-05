@@ -7,21 +7,21 @@ const strings = require('./strings.json');
 const mysql = require('mysql2');
 const { promisify } = require('util');
 const { v4: uuidv4 } = require('uuid');
-const jwt = require ('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 const Razorpay = require('razorpay');
 const app = express();
 const enc = require('./encryptions');
 
 app.use(bodyParser.json());
 app.use(express.json);
-app.use(express.urlencoded({extended: false}));
+app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 
 const dbConnection = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database:process.env.DB_NAME,
+  database: process.env.DB_NAME,
 });
 
 const accessToken = process.env.ACCESS_TOKEN;
@@ -32,10 +32,11 @@ let otpMap = new Map();
 
 // Function to generate OTP
 function generateOTP() {
-  const min = 100000; 
-  const max = 999999; 
+  const min = 100000;
+  const max = 999999;
   const otp = Math.floor(Math.random() * (max - min + 1)) + min;
-  return otp.toString(); 
+  console.log(otp)
+  return otp.toString();
 }
 
 
@@ -62,61 +63,67 @@ async function otpGeneration(req, res) {
         return res.status(500).json({ success: false, error: error.message });
       }
 
-      // Check if the user exists
       if (results.length > 0) {
-        const { uuid, Auth_token } = results[0];
-        const { iat, exp } = enc.decryptAuthToken(Auth_token);
+        const { uuid, Auth_token, whatsappNumber } = results[0];
+        const { exp } = enc.decryptAuthToken(Auth_token);
 
-        const currentTime = new Date().getTime();// Convert to seconds
-        // var dateNow = new Date();
+        const currentTime = new Date().getTime();
 
-        if ( exp <= currentTime) {
-          console.log('Token expired. Generating new OTP.');
-        
-          // Calculate the difference between the current time and the token expiration time
-          const timeDifference = currentTime - exp;
-          const otpExpirationTime = Date.now() + timeDifference;
-        
+        if (exp <= currentTime) {
+          console.log(exp)
+          console.log(currentTime)
+
+          console.log("Token expired. Generating new OTP.");
+
           const otp = generateOTP();
           resendCooldownMap.set(whatsappNumber, Date.now());
           otpMap.set(whatsappNumber, otp);
+          console.log('Stored OTP:', otpMap.get(whatsappNumber));
           return res.json({ success: true, otp });
-        }
-         else {
-          // Token is valid, return existing auth token
-          console.log('Token valid. Returning existing auth token.');
-          return res.json({ success: true, message: 'User found. Navigating to package_details page.', authToken: Auth_token });
+        } else {
+          // Token is valid, generate a new auth token and update it in the database
+          console.log('Token valid. Generating new auth token.');
+
+          const newAuthToken = enc.generateAuthToken(uuid, whatsappNumber);
+
+          // Update the database with the new auth token
+          const updateAuthTokenQuery = `
+            UPDATE userlogin
+            SET Auth_token = ?
+            WHERE Mobile_Number = ?;
+          `;
+
+          dbConnection.query(updateAuthTokenQuery, [newAuthToken, whatsappNumber], (error, updateResults) => {
+            if (error) {
+              console.error('Error updating auth token:', error);
+              return res.status(500).json({ success: false, error: error.message });
+            }
+
+            console.log('Auth token updated successfully.');
+
+            return res.json({ success: true, message: 'User found. Navigating to package_details page.', authToken: newAuthToken });
+          });
         }
       }
 
-      // If the user does not exist, generate OTP and return it
-      const cooldownTimestamp = resendCooldownMap.get(whatsappNumber);
-      if (cooldownTimestamp && Date.now() - cooldownTimestamp < RESEND_COOLDOWN) {
-        const remainingCooldown = RESEND_COOLDOWN - (Date.now() - cooldownTimestamp);
-        return res.status(400).json({
-          success: false,
-          message: `Resend OTP cooldown active. Please wait ${remainingCooldown / 1000} seconds.`,
-        });
-      }
 
-      const otp = generateOTP();
-      const url = process.env.Api_Url;
-      const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
-
-      const response = await axios.post(
-        apiUrl,
-        {},
-        {
-          headers: {
-            Authorization: accessToken,
-            'Content-Type': 'application/json',
-          },
+      else {
+        // If the user does not exist, generate OTP and return it
+        const cooldownTimestamp = resendCooldownMap.get(whatsappNumber);
+        if (cooldownTimestamp && Date.now() - cooldownTimestamp < RESEND_COOLDOWN) {
+          const remainingCooldown = RESEND_COOLDOWN - (Date.now() - cooldownTimestamp);
+          return res.status(400).json({
+            success: false,
+            message: `Resend OTP cooldown active. Please wait ${remainingCooldown / 1000} seconds.`,
+          });
         }
-      );
 
-      resendCooldownMap.set(whatsappNumber, Date.now());
-      otpMap.set(whatsappNumber, otp);
-      res.json({ success: true, otp });
+        const otp = generateOTP();
+
+        resendCooldownMap.set(whatsappNumber, Date.now());
+        otpMap.set(whatsappNumber, otp);
+        res.json({ success: true, otp });
+      }
 
     });
   } catch (error) {
@@ -124,7 +131,6 @@ async function otpGeneration(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
-
 
 async function resendOtp(req, res) {
   try {
@@ -148,19 +154,6 @@ async function resendOtp(req, res) {
     }
 
     const otp = generateOTP();
-    const url = process.env.Api_Url
-    const apiUrl = `${url}/${whatsappNumber}?messageText=${otp}`;
-
-    const response = await axios.post(
-      apiUrl,
-      {},
-      {
-        headers: {
-          Authorization: accessToken,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
 
     resendCooldownMap.set(whatsappNumber, Date.now());
     otpMap.set(whatsappNumber, otp);
@@ -177,13 +170,14 @@ async function userLogin(req, res) {
 
     console.log('Received login request:', { whatsappNumber, otp });
 
-    // Check if whatsappNumber and otp are provided and are numbers
     if (!whatsappNumber || isNaN(Number(whatsappNumber)) || whatsappNumber.length !== MAX_DIGITS || !otp || isNaN(Number(otp))) {
       console.log('Invalid input. Returning error.');
       return res.status(400).json({ success: false, message: "Invalid input. WhatsApp number and OTP must be valid numbers." });
     }
 
     const storedOTP = otpMap.get(whatsappNumber);
+    console.log('Stored OTP:', storedOTP);
+    console.log('Received OTP:', otp);
 
     if (!storedOTP || otp !== storedOTP) {
       console.log('Invalid OTP. Returning error.');
@@ -213,7 +207,6 @@ async function userLogin(req, res) {
 
       try {
         auth_token = await enc.generateAuthToken(uuid, whatsappNumber);
-        console.log('Generated Hashed Token:', auth_token);
       } catch (error) {
         console.error('Error generating hashed token:', error.message);
         return res.status(500).json({ success: false, error: 'Error generating hashed token' });
@@ -239,10 +232,8 @@ async function userLogin(req, res) {
         }
 
         console.log(`Record ${operation} successfully:`, queryResults);
-
         otpMap.delete(whatsappNumber); // Clear OTP from the temporary map
-        const message = `Login successful (${operation === 'inserted' ? 'new user' : 'existing user'})`;
-
+        const message = `Login successful (${operation === 'data updated' ? 'new user' : 'existing user'})`;
         res.json({ success: true, message, uuid, authToken: auth_token });
       });
     });
@@ -258,7 +249,7 @@ async function packageDetails(req, res) {
     const decrypted = await enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
     console.log(uuid);
-    const {  Weight, width, height } = req.body;
+    const { Weight, width, height } = req.body;
 
     const amount = Weight * 10;
     const insertQuery = `
@@ -349,7 +340,7 @@ async function toAddress(req, res) {
     let uuid = decrypted.uuid;
     console.log(uuid);
 
-    const {  name, mobileNumber, address, city, pincode, locality } = req.body;
+    const { name, mobileNumber, address, city, pincode, locality } = req.body;
 
     // Constructing the to_address string
     const toAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
@@ -398,25 +389,21 @@ async function toAddress(req, res) {
   }
 }
 
-async function orders(req, res){
-  try {
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_SECRET,
-    });
-
-    const options = req.body;
-    const order = await razorpay.orders.create(options);
-
-    if (!order) {
-      return res.status(500).send("Error");
-    }
-
-    res.json(order);
-  } catch (err) {
-    console.log(err);
-    res.status(500).send("Error");
+async function orders (req, res) {
+  var OrderID;
+  var instance = new Razorpay({
+      key_id: 'rzp_test_hcBEyLK2rKpWkS',
+      key_secret: 'AilD2hmREnc2HEDIuIBYzu6O'
+  })
+  var options = {
+      amount: req.body.amount,
+      receipt: req.body.receipt,
+      currency: "INR",
+      payment_capture: '0'
   }
+  instance.orders.create(options, function (err, order) {
+      res.send(order)
+  })
 
 }
 
