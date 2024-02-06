@@ -7,10 +7,11 @@ const strings = require('./strings.json');
 const mysql = require('mysql2');
 const { promisify } = require('util');
 const { v4: uuidv4 } = require('uuid');
-const jwt = require('jsonwebtoken');
 const Razorpay = require('razorpay');
 const app = express();
 const enc = require('./encryptions');
+const { TokenExpiredError } = require('jsonwebtoken');
+
 
 app.use(bodyParser.json());
 app.use(express.json);
@@ -63,17 +64,71 @@ async function otpGeneration(req, res) {
         return res.status(500).json({ success: false, error: error.message });
       }
 
-      if (results.length > 0) {
-        const { uuid, Auth_token, whatsappNumber } = results[0];
-        const { exp } = enc.decryptAuthToken(Auth_token);
+      try {
+        if (results.length > 0) {
+          const { uuid, Auth_token } = results[0];
+          const decryptedData = enc.decryptAuthToken(Auth_token);
 
-        const currentTime = new Date().getTime();
+          if (!decryptedData || !decryptedData.exp) {
+            throw new Error("Invalid token or token expiration time not found.");
+          }
 
-        if (exp <= currentTime) {
-          console.log(exp)
-          console.log(currentTime)
+          const { exp } = decryptedData;
+          const currentTime = Math.floor(Date.now() / 1000); // Convert milliseconds to seconds
 
-          console.log("Token expired. Generating new OTP.");
+          if (exp <= currentTime) {
+            console.log("Token expired. Generating new OTP.");
+
+            const otp = generateOTP();
+            resendCooldownMap.set(whatsappNumber, Date.now());
+            otpMap.set(whatsappNumber, otp);
+            console.log('Stored OTP:', otpMap.get(whatsappNumber));
+            return res.json({ success: true, otp });
+          } else {
+            // Token is valid, generate a new auth token and update it in the database
+            console.log('Token valid. Generating new auth token.');
+
+            const newAuthToken = enc.generateAuthToken(uuid, whatsappNumber);
+
+            // Update the database with the new auth token
+            const updateAuthTokenQuery = `
+              UPDATE userlogin
+              SET Auth_token = ?
+              WHERE Mobile_Number = ?;
+            `;
+
+            dbConnection.query(updateAuthTokenQuery, [newAuthToken, whatsappNumber], (error, updateResults) => {
+              if (error) {
+                console.error('Error updating auth token:', error);
+                return res.status(500).json({ success: false, error: error.message });
+              }
+
+              console.log('Auth token updated successfully.');
+
+              return res.json({ success: true, message: 'User found. Navigating to package_details page.', authToken: newAuthToken });
+            });
+          }
+        } else {
+          // If the user does not exist, generate OTP and return it
+          const cooldownTimestamp = resendCooldownMap.get(whatsappNumber);
+          if (cooldownTimestamp && Date.now() - cooldownTimestamp < RESEND_COOLDOWN) {
+            const remainingCooldown = RESEND_COOLDOWN - (Date.now() - cooldownTimestamp);
+            return res.status(400).json({
+              success: false,
+              message: `Resend OTP cooldown active. Please wait ${remainingCooldown / 1000} seconds.`,
+            });
+          }
+
+          const otp = generateOTP();
+
+          resendCooldownMap.set(whatsappNumber, Date.now());
+          otpMap.set(whatsappNumber, otp);
+          return res.json({ success: true, otp });
+        }
+      } catch (error) {
+        // Handle the case where the token is expired or invalid
+        if (error.message === 'Invalid token or token expiration time not found.') {
+          console.log("Token expired or invalid. Generating new OTP.");
 
           const otp = generateOTP();
           resendCooldownMap.set(whatsappNumber, Date.now());
@@ -81,56 +136,19 @@ async function otpGeneration(req, res) {
           console.log('Stored OTP:', otpMap.get(whatsappNumber));
           return res.json({ success: true, otp });
         } else {
-          // Token is valid, generate a new auth token and update it in the database
-          console.log('Token valid. Generating new auth token.');
-
-          const newAuthToken = enc.generateAuthToken(uuid, whatsappNumber);
-
-          // Update the database with the new auth token
-          const updateAuthTokenQuery = `
-            UPDATE userlogin
-            SET Auth_token = ?
-            WHERE Mobile_Number = ?;
-          `;
-
-          dbConnection.query(updateAuthTokenQuery, [newAuthToken, whatsappNumber], (error, updateResults) => {
-            if (error) {
-              console.error('Error updating auth token:', error);
-              return res.status(500).json({ success: false, error: error.message });
-            }
-
-            console.log('Auth token updated successfully.');
-
-            return res.json({ success: true, message: 'User found. Navigating to package_details page.', authToken: newAuthToken });
-          });
+          console.error('Error occurred:', error);
+          return res.status(500).json({ success: false, error: error.message });
         }
       }
-
-
-      else {
-        // If the user does not exist, generate OTP and return it
-        const cooldownTimestamp = resendCooldownMap.get(whatsappNumber);
-        if (cooldownTimestamp && Date.now() - cooldownTimestamp < RESEND_COOLDOWN) {
-          const remainingCooldown = RESEND_COOLDOWN - (Date.now() - cooldownTimestamp);
-          return res.status(400).json({
-            success: false,
-            message: `Resend OTP cooldown active. Please wait ${remainingCooldown / 1000} seconds.`,
-          });
-        }
-
-        const otp = generateOTP();
-
-        resendCooldownMap.set(whatsappNumber, Date.now());
-        otpMap.set(whatsappNumber, otp);
-        res.json({ success: true, otp });
-      }
-
+      
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Error occurred:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 }
+
+
 
 async function resendOtp(req, res) {
   try {

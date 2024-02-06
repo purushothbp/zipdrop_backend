@@ -20,7 +20,7 @@
     "http-errors": "~1.6.3",
     "jsonwebtoken": "^9.0.2",
     "mysql": "^2.18.1",
-    "mysql2": "^3.7.1",
+    "mysql2": "^3.9.1",
     "nodemon": "^3.0.3",
     "nvm": "^0.0.4",
     "otp-generator": "^4.0.1",

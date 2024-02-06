@@ -5,10 +5,9 @@ require('dotenv').config();
 
 function generateAuthToken(uuid, whatsappNumber) {
     const secret = process.env.SECRET_FOR_ENCR_DECR;
-    const expirationTime = Math.trunc(new Date().getTime() / 1000) + 60;
+    const expirationTime = '120000';
     const token = jwt.sign({ uuid, whatsappNumber }, secret, {expiresIn: expirationTime});
-    console.log("token: ", token);
-    return token;
+    return expirationTime,token;
 }
 
 
@@ -16,7 +15,6 @@ function decryptAuthToken(token) {
     const secret = 'zipdrop';
     try {
         const decryptedData = jwt.verify(token, secret);
-        console.log(decryptedData);
         return decryptedData;
     } catch (error) {
         console.error('Token verification failed:', error);
