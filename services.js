@@ -350,7 +350,6 @@ async function fromAddress(req, res) {
   }
 }
 
-
 async function toAddress(req, res) {
   try {
     const authToken = req.headers.authorization.replace('Bearer ', '');
