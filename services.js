@@ -405,14 +405,23 @@ async function toAddress(req, res) {
 
 async function createCustomer(req, res) {
   try {
-    const customer = await stripe.customers.create({
-      name: req.body.name,
-      email: req.body.email,
-      amount: req.body.amount
+    // const customer = await stripe.customers.create({
+    //   name: req.body.name,
+    //   email: req.body.email,
+     
       
-    });
+    // });
+    const paymentIntent = await stripe.paymentIntents.create( {
+   
+      
+    
+      currency:"INR",
+      amount: req.body.amount,
+      automatic_payment_methods:{
+      enabled:"true"
+    }} )
 
-    res.status(200).send(customer);
+    res.status(200).send( paymentIntent);
 
   } catch (error) {
     res.status(400).send({ success: false, msg: error.message });
