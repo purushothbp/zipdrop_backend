@@ -1,20 +1,21 @@
 require('dotenv').config();
 const cors = require('cors');
-const axios = require('axios');
 const bodyParser = require('body-parser');
 const express = require('express')
 const strings = require('./strings.json');
 const mysql = require('mysql2');
-const { promisify } = require('util');
 const { v4: uuidv4 } = require('uuid');
-const Razorpay = require('razorpay');
 const app = express();
 const enc = require('./encryptions');
-const { TokenExpiredError } = require('jsonwebtoken');
+
+const secret_key = process.env.STRIPE_SECRET_KEY;
+
+const stripe = require('stripe')(secret_key);
 
 
 app.use(bodyParser.json());
 app.use(express.json);
+app.use(express.static("public"));
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 
@@ -25,7 +26,6 @@ const dbConnection = mysql.createConnection({
   database: process.env.DB_NAME,
 });
 
-const accessToken = process.env.ACCESS_TOKEN;
 const MAX_DIGITS = 12; //number of digits need to present in mobileNumber
 const RESEND_COOLDOWN = 30000; // 30 seconds in milliseconds
 let resendCooldownMap = new Map();
@@ -39,7 +39,6 @@ function generateOTP() {
   console.log(otp)
   return otp.toString();
 }
-
 
 async function otpGeneration(req, res) {
   try {
@@ -140,15 +139,13 @@ async function otpGeneration(req, res) {
           return res.status(500).json({ success: false, error: error.message });
         }
       }
-      
+
     });
   } catch (error) {
     console.error('Error occurred:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
-
-
 
 async function resendOtp(req, res) {
   try {
@@ -406,21 +403,68 @@ async function toAddress(req, res) {
   }
 }
 
-async function orders (req, res) {
-  var OrderID;
-  var instance = new Razorpay({
-      key_id: 'rzp_test_hcBEyLK2rKpWkS',
-      key_secret: 'AilD2hmREnc2HEDIuIBYzu6O'
-  })
-  var options = {
-      amount: req.body.amount,
-      receipt: req.body.receipt,
-      currency: "INR",
-      payment_capture: '0'
+async function createCustomer(req, res) {
+  try {
+    const customer = await stripe.customers.create({
+      name: req.body.name,
+      email: req.body.email,
+      amount: req.body.amount
+      
+    });
+
+    res.status(200).send(customer);
+
+  } catch (error) {
+    res.status(400).send({ success: false, msg: error.message });
   }
-  instance.orders.create(options, function (err, order) {
-      res.send(order)
-  })
+}
+
+async function addNewCard(req, res) {
+  try {
+
+    const {
+      customer_id,
+      card_Name,
+      card_ExpYear,
+      card_ExpMonth,
+      card_Number,
+      card_CVC,
+    } = req.body;
+
+    const card_token = await stripe.tokens.create({
+      card: {
+        name: card_Name,
+        number: card_Number,
+        exp_year: card_ExpYear,
+        exp_month: card_ExpMonth,
+        cvc: card_CVC
+      }
+    });
+
+    const card = await stripe.customers.createSource(customer_id, {
+      source: `${card_token.id}`
+    });
+
+    res.status(200).send({ card: card.id });
+
+  } catch (error) {
+    res.status(400).send({ success: false, msg: error.message });
+  }
+}
+async function createCharges(req, res) {
+  try {
+
+    const createCharge = await stripe.charges.create({
+      receipt_email: 'tester@gmail.com',
+      amount: parseInt(req.body.amount) * 100, //amount*100
+      currency: 'INR',
+      card: req.body.card_id,
+      customer: req.body.customer_id
+    });
+    res.status(200).send(createCharge);
+  } catch (error) {
+    res.status(400).send({ success: false, msg: error.message });
+  }
 
 }
 
@@ -432,6 +476,8 @@ module.exports = {
   packageDetails,
   fromAddress,
   toAddress,
-  orders
+  createCustomer,
+  addNewCard,
+  createCharges,
 }
 

@@ -6,7 +6,8 @@ const sendOtp = require("../routes/sendotpRoute");
 const package_details = require("../routes/package_details");
 const from_address = require("../routes/fromAddress");
 const to_address = require("../routes/toAddress");
-const orders = require("../routes/razorpay");
+const orders = require("../routes/payment");
+const order1 = require('../routes/orders');
 require('dotenv').config();
 
 
@@ -22,6 +23,8 @@ app.use('/', loginRoute);
 app.use('/', package_details);
 app.use('/', from_address);
 app.use('/', to_address);
+app.use('/', orders);
+app.use('/', order1);
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
