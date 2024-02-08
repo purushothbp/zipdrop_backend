@@ -425,18 +425,18 @@ async function product(req, res) {
 
     const amount = `
       SELECT amount FROM package_details WHERE uuid = ?;`
-
+  
       dbConnection.query(amount, [uuid], (selectError) => {
         if (selectError) {
           console.error('Error querying record:', selectError);
           return res.status(500).json({ success: false, error: selectError.message });
         }
+        console.log(amount)
 
     const product =  stripe.products.create({
       name: req.body.name,
       description: "payment for your package",
       package_dimensions: (Weight,height,width),
-      default_price_data: amount
     })
     res.send(product);
   })
