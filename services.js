@@ -85,7 +85,6 @@ async function otpGeneration(req, res) {
             return res.json({ success: true, otp });
           } else {
             // Token is valid, generate a new auth token and update it in the database
-            console.log('Token valid. Generating new auth token.');
 
             const newAuthToken = enc.generateAuthToken(uuid, whatsappNumber);
 
@@ -102,9 +101,8 @@ async function otpGeneration(req, res) {
                 return res.status(500).json({ success: false, error: error.message });
               }
 
-              console.log('Auth token updated successfully.');
 
-              return res.json({ success: true, message: 'User found. Navigating to package_details page.', authToken: newAuthToken });
+              return res.json({ success: true, msg: "User in section", authToken: newAuthToken });
             });
           }
         } else {
@@ -127,13 +125,11 @@ async function otpGeneration(req, res) {
       } catch (error) {
         // Handle the case where the token is expired or invalid
         if (error.message === 'Invalid token or token expiration time not found.') {
-          console.log("Token expired or invalid. Generating new OTP.");
-
           const otp = generateOTP();
           resendCooldownMap.set(whatsappNumber, Date.now());
           otpMap.set(whatsappNumber, otp);
           console.log('Stored OTP:', otpMap.get(whatsappNumber));
-          return res.json({ success: true, otp });
+          return res.json({ success: true, msg:"User not found",otp  });
         } else {
           console.error('Error occurred:', error);
           return res.status(500).json({ success: false, error: error.message });
@@ -409,7 +405,6 @@ async function createCustomer(req, res) {
     //   name: req.body.name,
     //   email: req.body.email,
      
-      
     // });
     const paymentIntent = await stripe.paymentIntents.create( {
    
