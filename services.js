@@ -422,23 +422,31 @@ async function product(req, res) {
     const decrypted = enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
 
-    const amount = `
-      SELECT amount FROM package_details WHERE uuid = ?;`
+    // Query to retrieve Weight, height, and width from the package_details table
+    const dimensionsQuery = `
+      SELECT  height, width, amount FROM package_details WHERE uuid = ?;`;
 
-      dbConnection.query(amount, [uuid], (selectError) => {
-        if (selectError) {
-          console.error('Error querying record:', selectError);
-          return res.status(500).json({ success: false, error: selectError.message });
-        }
+    dbConnection.query(dimensionsQuery, [uuid], (selectError, result) => {
+      if (selectError) {
+        console.error('Error querying dimensions:', selectError);
+        return res.status(500).json({ success: false, error: selectError.message });
+      }
 
-    const product =  stripe.products.create({
-      name: req.body.name,
-      description: "payment for your package",
-      package_dimensions: (Weight,height,width),
-      default_price_data: amount
-    })
-    res.send(product);
-  })
+      if (result.length === 0) {
+        return res.status(404).json({ success: false, error: 'Package details not found' });
+      }
+
+      const { height, width, amount } = result[0];
+      console.log( height, width, amount);
+      const {length,weight} = req.body;
+      const product1 = stripe.products.create({
+        name: req.body.name,
+        description: "Payment for your package",
+        package_dimensions: {  length , weight, height, width },
+      });
+
+      res.send(product1);
+    });
   } catch (err) {
     res.status(500).send(err);
   }
@@ -481,7 +489,7 @@ async function createCharges(req, res) {
   try {
 
     const createCharge = await stripe.charges.create({
-      receipt_email: 'tester@gmail.com',
+      receipt_email: 'mailto:tester@gmail.com',
       amount: parseInt(req.body.amount) * 100, //amount*100
       currency: 'INR',
       card: req.body.card_id,
