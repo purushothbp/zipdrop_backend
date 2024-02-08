@@ -11,7 +11,6 @@ const pool = mysql.createpool
 })
 
 let sql = "SELECT * FROM posts";
-
 pool.execute(sql,function (err, result){
     if (err) throw err ;
 
