@@ -421,29 +421,30 @@ async function product(req, res) {
     const authToken = req.headers.authorization.replace('Bearer ', '');
     const decrypted = enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
-    const { Weight, width, height } = req.body;
 
     const amount = `
       SELECT amount FROM package_details WHERE uuid = ?;`
-  
+
       dbConnection.query(amount, [uuid], (selectError) => {
         if (selectError) {
           console.error('Error querying record:', selectError);
           return res.status(500).json({ success: false, error: selectError.message });
         }
-        console.log(amount)
 
     const product =  stripe.products.create({
       name: req.body.name,
       description: "payment for your package",
       package_dimensions: (Weight,height,width),
+      default_price_data: amount
     })
     res.send(product);
   })
   } catch (err) {
-    res.status(200).send(err);
+    res.status(500).send(err);
   }
 }
+
+
 async function addNewCard(req, res) {
   try {
 
