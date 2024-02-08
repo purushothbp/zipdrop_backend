@@ -421,29 +421,38 @@ async function product(req, res) {
     const authToken = req.headers.authorization.replace('Bearer ', '');
     const decrypted = enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
-    const { Weight, width, height } = req.body;
 
-    const amount = `
-      SELECT amount FROM package_details WHERE uuid = ?;`
+    // Query to retrieve Weight, height, and width from the package_details table
+    const dimensionsQuery = `
+      SELECT Weight, height, width, amount FROM package_details WHERE uuid = ?;`;
 
-      dbConnection.query(amount, [uuid], (selectError) => {
-        if (selectError) {
-          console.error('Error querying record:', selectError);
-          return res.status(500).json({ success: false, error: selectError.message });
-        }
+    dbConnection.query(dimensionsQuery, [uuid], (selectError, result) => {
+      if (selectError) {
+        console.error('Error querying dimensions:', selectError);
+        return res.status(500).json({ success: false, error: selectError.message });
+      }
 
-    const product =  stripe.products.create({
-      name: req.body.name,
-      description: "payment for your package",
-      package_dimensions: (Weight,height,width),
+      if (result.length === 0) {
+        return res.status(404).json({ success: false, error: 'Package details not found' });
+      }
+
+      const { Weight, height, width, amount } = result[0];
+      console.log( Weight, height, width, amount);
+      const product = stripe.products.create({
+        name: req.body.name,
+        description: "Payment for your package",
+        package_dimensions: { Weight, height, width },
       default_price_data: amount
-    })
-    res.send(product);
-  })
+    });
+
+      res.send(product);
+    });
   } catch (err) {
-    res.status(200).send(err);
+    res.status(500).send(err);
   }
 }
+
+
 async function addNewCard(req, res) {
   try {
 
