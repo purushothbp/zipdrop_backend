@@ -129,7 +129,7 @@ async function otpGeneration(req, res) {
           resendCooldownMap.set(whatsappNumber, Date.now());
           otpMap.set(whatsappNumber, otp);
           console.log('Stored OTP:', otpMap.get(whatsappNumber));
-          return res.json({ success: true, msg:"User not found",otp  });
+          return res.json({ success: true, msg: "User not found", otp });
         } else {
           console.error('Error occurred:', error);
           return res.status(500).json({ success: false, error: error.message });
@@ -399,30 +399,51 @@ async function toAddress(req, res) {
   }
 }
 
-async function createCustomer(req, res) {
+async function createPayment(req, res) {
   try {
-    // const customer = await stripe.customers.create({
-    //   name: req.body.name,
-    //   email: req.body.email,
-     
-    // });
-    const paymentIntent = await stripe.paymentIntents.create( {
-   
-      
-    
-      currency:"INR",
+    const paymentIntent = await stripe.paymentIntents.create({
+      currency: "INR",
       amount: req.body.amount,
-      automatic_payment_methods:{
-      enabled:"true"
-    }} )
+      automatic_payment_methods: {
+        enabled: "true"
+      },
+      payment_method: 'pm_card_visa',
+    })
 
-    res.status(200).send( paymentIntent);
+    res.status(200).send(paymentIntent);
 
   } catch (error) {
     res.status(400).send({ success: false, msg: error.message });
   }
 }
+async function product(req, res) {
+  try {
+    const authToken = req.headers.authorization.replace('Bearer ', '');
+    const decrypted = enc.decryptAuthToken(authToken);
+    let uuid = decrypted.uuid;
+    const { Weight, width, height } = req.body;
 
+    const amount = `
+      SELECT amount FROM package_details WHERE uuid = ?;`
+
+      dbConnection.query(amount, [uuid], (selectError) => {
+        if (selectError) {
+          console.error('Error querying record:', selectError);
+          return res.status(500).json({ success: false, error: selectError.message });
+        }
+
+    const product =  stripe.products.create({
+      name: req.body.name,
+      description: "payment for your package",
+      package_dimensions: (Weight,height,width),
+      default_price_data: amount
+    })
+    res.send(product);
+  })
+  } catch (err) {
+    res.status(200).send(err);
+  }
+}
 async function addNewCard(req, res) {
   try {
 
@@ -480,8 +501,9 @@ module.exports = {
   packageDetails,
   fromAddress,
   toAddress,
-  createCustomer,
+  createPayment,
   addNewCard,
   createCharges,
+  product
 }
 
