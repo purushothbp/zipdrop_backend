@@ -426,7 +426,7 @@ async function product(req, res) {
     const dimensionsQuery = `
       SELECT  height, width, amount FROM package_details WHERE uuid = ?;`;
 
-    dbConnection.query(dimensionsQuery, [uuid], async (selectError, result) => {
+    dbConnection.query(dimensionsQuery, [uuid], (selectError, result) => {
       if (selectError) {
         console.error('Error querying dimensions:', selectError);
         return res.status(500).json({ success: false, error: selectError.message });
@@ -437,25 +437,14 @@ async function product(req, res) {
       }
 
       const { Weight, height, width, amount } = result[0];
-      console.log( Weight, height, width, amount);
-      const {orders} = req.body;
-      const lineItems = orders.map((order)=>({
-        price_data:{
-          currency:"INR",
-          order_data:{
-            name:order.name
-          },
-          unit_amount: Math.round(order.price*10),
-        }
-      }));
-      const session = await stripe.checkout.sessions.create({
-        payment_method_type:["card"],
-        line_items:lineItems,
-        mode:"payment",
-        success_url:"",
-        cancel_url:""
-      })
-      res.json({id:session.id})
+      const product = stripe.products.create({
+        name: req.body.name,
+        description: "Payment for your package",
+        package_dimensions: { Weight, height, width },
+      default_price_data: amount
+    });
+
+      res.send(product);
     });
   } catch (err) {
     res.status(500).send(err);
