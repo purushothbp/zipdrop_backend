@@ -426,7 +426,7 @@ async function product(req, res) {
     const dimensionsQuery = `
       SELECT  height, width, amount FROM package_details WHERE uuid = ?;`;
 
-    dbConnection.query(dimensionsQuery, [uuid], (selectError, result) => {
+    dbConnection.query(dimensionsQuery, [uuid], async (selectError, result) => {
       if (selectError) {
         console.error('Error querying dimensions:', selectError);
         return res.status(500).json({ success: false, error: selectError.message });
@@ -437,20 +437,40 @@ async function product(req, res) {
       }
 
       const { Weight, height, width, amount } = result[0];
-      const product = stripe.products.create({
-        name: req.body.name,
-        description: "Payment for your package",
-        package_dimensions: { Weight, height, width },
-      default_price_data: amount
-    });
+      console.log('Retrieved package details:', Weight, height, width, amount);
 
-      res.send(product);
+      const { orders } = req.body;
+      if (!Array.isArray(orders)) {
+        console.error('Orders is not an array');
+        return res.status(400).json({ success: false, error: 'Orders must be an array' });
+      }
+
+      const lineItems = orders.map((order) => ({
+        price_data: {
+          currency: "INR",
+          product_data: {
+            name: order.name
+          },
+          unit_amount: Math.round(order.price * 10), // Assuming order.price is the price in rupees
+        },
+        quantity:order.quantity
+      }));
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: lineItems,
+        mode: "payment",
+        success_url: "http://localhost:4000/Home", 
+        cancel_url: "http://localhost:4000/cancel"
+      });
+
+      res.json({ id: session });
     });
   } catch (err) {
+    console.error('Error in product function:', err);
     res.status(500).send(err);
   }
 }
-
 
 async function addNewCard(req, res) {
   try {
