@@ -261,13 +261,13 @@ async function packageDetails(req, res) {
     let uuid = decrypted.uuid;
     console.log(uuid);
       const { weight, width, height, length } = req.body;
-
+      const parcelDetails = `length:${length},width:${width}, height:${height}, weight:${weight}`
     const insertQuery = `
-      INSERT INTO package_details (uuid, weight, height, width,length)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO package_details (uuid, parcelDetails)
+      VALUES (?, ?)
     `;
 
-    const values = [uuid, weight, height, width, length];
+    const values = [uuid, parcelDetails];
 
     dbConnection.query(insertQuery, values, (error, results) => {
       if (error) {
@@ -345,46 +345,62 @@ async function fromAddress(req, res) {
 async function toAddress(req, res) {
   try {
     const authToken = req.headers.authorization.replace('Bearer ', '');
-    const decrypted = await enc.decryptAuthToken(authToken);
+    const decrypted = enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
     console.log(uuid);
 
-    const { name, phone, street, city,state, zip, country } = req.body;
+    const { name, phone, street, city, state, zip, country } = req.body;
 
     // Constructing the to_address string
     const toAddress = `${name},${street},${zip}, ${country},${state}, ${city}, ${phone}`;
 
     // Check if UUID exists in the database
-    const checkUserQuery = `
-      SELECT from_address, to_address, weight, height, width, length FROM package_details
-      WHERE uuid = ?;
-    `;
-
-    dbConnection.query(checkUserQuery, [uuid], async (selectError, selectResults) => {
+    const selectQuery = `
+      SELECT * FROM package_details WHERE uuid = ?
+    ;`
+    dbConnection.query(selectQuery, [uuid], async (selectError, selectResults) => {
       if (selectError) {
         console.error('Error querying record:', selectError);
         return res.status(500).json({ success: false, error: selectError.message });
       }
 
       if (selectResults.length > 0) {
-        const { weight, height, width, length } = selectResults[0];
+        const { parcelDetails, from_address } = selectResults[0];
+        console.log(parcelDetails, from_address);
 
-        const parcelDetails = { weight, height, width, length };
+        // Check if parcelDetails is not null
+        if (parcelDetails) {
+          // Parse the JSON string to extract parcel details
+          const { length, width, height, weight } = JSON.parse(parcelDetails);
 
-        const amount = await calculateShippingRate(fromAddress, toAddress, parcelDetails);
+          // Check if any essential dimension information is missing
+          if (length && width && height && weight && from_address) {
+            const parcelDetails = { length, width, height, weight };
 
-        const updateQuery = `
-          UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?
-        `;
+            const amount = await enc.calculateShippingRate(from_address, toAddress, parcelDetails);
 
-        dbConnection.query(updateQuery, [toAddress, amount, uuid], (updateError, updateResults) => {
-          if (updateError) {
-            console.error('Error updating record:', updateError);
-            return res.status(500).json({ success: false, error: updateError.message });
+            const updateQuery = `
+              UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?
+            `;
+
+            dbConnection.query(updateQuery, [toAddress, amount, uuid], (updateError, updateResults) => {
+              if (updateError) {
+                console.error('Error updating record:', updateError);
+                return res.status(500).json({ success: false, error: updateError.message });
+              }
+              console.log('Record updated successfully:', updateResults);
+              res.json({ success: true, message: 'Receiver details updated successfully' });
+            });
+          } else {
+            // Handle missing dimension information
+            console.error('Missing essential dimension information');
+            res.status(400).json({ success: false, error: 'Missing essential dimension information' });
           }
-          console.log('Record updated successfully:', updateResults);
-          res.json({ success: true, message: 'Receiver details updated successfully' });
-        });
+        } else {
+          // Handle null parcelDetails
+          console.error('Parcel details are null');
+          res.status(400).json({ success: false, error: 'Parcel details are null' });
+        }
       } else {
         const insertQuery = `
           INSERT INTO package_details (uuid, to_address) VALUES (?, ?)
@@ -404,7 +420,6 @@ async function toAddress(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
-
 
 async function createPayment(req, res) {
   try {
@@ -527,7 +542,6 @@ async function createCharges(req, res) {
   }
 
 }
-
 
 module.exports = {
   otpGeneration,

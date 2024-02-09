@@ -48,41 +48,41 @@ module.exports = {
 }
 
 
-// Example usage
-(async () => {
-    const fromAddress = {
-      street1: '417 Montgomery Street',
-      street2: 'FL 5',
-      city: 'San Francisco',
-      state: 'CA',
-      zip: '94104',
-      country: 'US',
-      company: 'EasyPost',
-      phone: '415-123-4567',
-    };
+// // Example usage
+// (async () => {
+//     const fromAddress = {
+//       street1: '417 Montgomery Street',
+//       street2: 'FL 5',
+//       city: 'San Francisco',
+//       state: 'CA',
+//       zip: '94104',
+//       country: 'US',
+//       company: 'EasyPost',
+//       phone: '415-123-4567',
+//     };
   
-    const toAddress = {
-      name: 'Dr. Steve Brule',
-      street1: '179 N Harbor Dr',
-      city: 'Redondo Beach',
-      state: 'CA',
-      zip: '90277',
-      country: 'US',
-      email: 'dr_steve_brule@gmail.com',
-      phone: '4155559999',
-    };
+//     const toAddress = {
+//       name: 'Dr. Steve Brule',
+//       street1: '179 N Harbor Dr',
+//       city: 'Redondo Beach',
+//       state: 'CA',
+//       zip: '90277',
+//       country: 'US',
+//       email: 'dr_steve_brule@gmail.com',
+//       phone: '4155559999',
+//     };
   
-    const parcelDetails = {
-      length: 20.2,
-      width: 10.9,
-      height: 5,
-      weight: 65.9,
-    };
+//     const parcelDetails = {
+//       length: 20.2,
+//       width: 10.9,
+//       height: 5,
+//       weight: 65.9,
+//     };
   
-    try {
-      const rate = await calculateShippingRate(fromAddress, toAddress, parcelDetails);
-      console.log('Shipping rate:', rate);
-    } catch (error) {
-      console.error('Failed to calculate shipping rate:', error);
-    }
-  })();
+//     try {
+//       const rate = await calculateShippingRate(fromAddress, toAddress, parcelDetails);
+//       console.log('Shipping rate:', rate);
+//     } catch (error) {
+//       console.error('Failed to calculate shipping rate:', error);
+//     }
+//   })();
