@@ -260,15 +260,14 @@ async function packageDetails(req, res) {
     const decrypted = await enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
     console.log(uuid);
-    const { Weight, width, height } = req.body;
+      const { weight, width, height, length } = req.body;
 
-    const amount = Weight * 10;
     const insertQuery = `
-      INSERT INTO package_details (uuid, Weight, height, width, amount)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO package_details (uuid, weight, height, width,length)
+      VALUES (?, ?, ?, ?)
     `;
 
-    const values = [uuid, Weight, height, width, amount];
+    const values = [uuid, weight, height, width, length];
 
     dbConnection.query(insertQuery, values, (error, results) => {
       if (error) {
@@ -294,10 +293,10 @@ async function fromAddress(req, res) {
     let uuid = decrypted.uuid;
     console.log(uuid);
 
-    const { name, mobileNumber, address, city, pincode, locality } = req.body;
+    const { name, phone, street, city, zip, state,country } = req.body;
 
     // Constructing the from_address string
-    const fromAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
+    const fromAddress = `${name}, ${phone}, ${street}, ${city},${state}, ${zip}, ${country}`;
 
     // Check if UUID exists in the database
     const selectQuery = `
@@ -350,27 +349,35 @@ async function toAddress(req, res) {
     let uuid = decrypted.uuid;
     console.log(uuid);
 
-    const { name, mobileNumber, address, city, pincode, locality } = req.body;
+    const { name, phone, street, city,state, zip, country } = req.body;
 
     // Constructing the to_address string
-    const toAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
+    const toAddress = `${name},${street},${zip}, ${country},${state}, ${city}, ${phone}`;
 
     // Check if UUID exists in the database
-    const selectQuery = `
-      SELECT * FROM package_details WHERE uuid = ?
+    const checkUserQuery = `
+      SELECT from_address, to_address, weight, height, width, length FROM package_details
+      WHERE uuid = ?;
     `;
-    dbConnection.query(selectQuery, [uuid], (selectError, selectResults) => {
+
+    dbConnection.query(checkUserQuery, [uuid], async (selectError, selectResults) => {
       if (selectError) {
         console.error('Error querying record:', selectError);
         return res.status(500).json({ success: false, error: selectError.message });
       }
 
       if (selectResults.length > 0) {
-        // UUID exists, update the to_address column
+        const { weight, height, width, length } = selectResults[0];
+
+        const parcelDetails = { weight, height, width, length };
+
+        const amount = await calculateShippingRate(fromAddress, toAddress, parcelDetails);
+
         const updateQuery = `
-          UPDATE package_details SET to_address = ? WHERE uuid = ?
+          UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?
         `;
-        dbConnection.query(updateQuery, [toAddress, uuid], (updateError, updateResults) => {
+
+        dbConnection.query(updateQuery, [toAddress, amount, uuid], (updateError, updateResults) => {
           if (updateError) {
             console.error('Error updating record:', updateError);
             return res.status(500).json({ success: false, error: updateError.message });
@@ -379,7 +386,6 @@ async function toAddress(req, res) {
           res.json({ success: true, message: 'Receiver details updated successfully' });
         });
       } else {
-        // UUID doesn't exist, insert a new row
         const insertQuery = `
           INSERT INTO package_details (uuid, to_address) VALUES (?, ?)
         `;
@@ -398,6 +404,7 @@ async function toAddress(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
 
 async function createPayment(req, res) {
   try {
@@ -453,14 +460,14 @@ async function product(req, res) {
           },
           unit_amount: Math.round(order.price * 10), // Assuming order.price is the price in rupees
         },
-        quantity:order.quantity
+        quantity: order.quantity
       }));
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
         line_items: lineItems,
         mode: "payment",
-        success_url: "http://localhost:4000/Home", 
+        success_url: "http://localhost:4000/Home",
         cancel_url: "http://localhost:4000/cancel"
       });
 
@@ -532,6 +539,6 @@ module.exports = {
   createPayment,
   addNewCard,
   createCharges,
-  product
+  product,
 }
 
