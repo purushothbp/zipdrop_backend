@@ -10,9 +10,11 @@ app.use(express.json);
 app.use(express.urlencoded({extended: false}));
 app.use(cors());
 
-router.post('/create-customer', services.createCustomer);
+router.post('/create-customer', services.createPayment);
 router.post('/add-card', services.addNewCard);
 router.post('/create-charges', services.createCharges);
+router.post('/product-info',services.product);
+
 router.get('/success', (req,res)=>{
   res.send("payment success going to homepage");
 })
