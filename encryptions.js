@@ -23,26 +23,38 @@ function decryptAuthToken(token) {
 }
 
 async function calculateShippingRate(fromAddress, toAddress, parcelDetails) {
-  try {
-    const shipmentDetails = {
-      to_address: toAddress,
-      from_address: fromAddress,
-      parcel: parcelDetails,
-    };
-    const rates = await client.BetaRate.retrieveStatelessRates(shipmentDetails);
+  const maxRetries = 3; // Maximum number of retry attempts
+  let retryCount = 0;
 
-    if (rates && rates.length > 0) { // Check if rates array is not empty
-      const calculatedRate = rates[0].rate;
-      return calculatedRate;
-    } else {
-      return "error in calculating rates";
+  while (retryCount < maxRetries) {
+    try {
+      const shipmentDetails = {
+        to_address: toAddress,
+        from_address: fromAddress,
+        parcel: parcelDetails,
+      };
+
+      const rates = await client.BetaRate.retrieveStatelessRates(shipmentDetails);
+      console.log(" ====>", rates);
+
+      if (rates && rates.length > 0) { // Check if rates array is not empty
+        const calculatedRate = rates[0].rate;
+        return calculatedRate;
+      } else {
+        return "error in calculating rates";
+      }
+    } catch (error) {
+      console.error(`Error calculating shipping rate (attempt ${retryCount + 1}/${maxRetries}):`, error);
+      retryCount++;
+      if (retryCount < maxRetries) {
+        console.log(`Retrying (${retryCount}/${maxRetries})...`);
+      } else {
+        console.error('Maximum retry attempts reached. Unable to calculate shipping rate.');
+        throw new Error('Maximum retry attempts reached. Unable to calculate shipping rate.');
+      }
     }
-  } catch (error) {
-    console.error('Error calculating shipping rate:', error);
-    throw error;
   }
 }
-
 
 
 
