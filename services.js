@@ -344,9 +344,6 @@ async function toAddress(req, res) {
     const decrypted = enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
     console.log(uuid);
-
-
-
     const toAddress = req.body;
 
     const selectQuery = `
