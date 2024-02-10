@@ -260,8 +260,7 @@ async function packageDetails(req, res) {
     const decrypted = await enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
     console.log(uuid);
-      const { weight, width, height, length } = req.body;
-      const parcelDetails = `length:${length},width:${width}, height:${height}, weight:${weight}`
+      const parcelDetails = JSON.stringify(req.body);
     const insertQuery = `
       INSERT INTO package_details (uuid, parcelDetails)
       VALUES (?, ?)
@@ -292,11 +291,8 @@ async function fromAddress(req, res) {
     const decrypted = await enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
     console.log(uuid);
-
-    const { name, phone, street, city, zip, state,country } = req.body;
-
     // Constructing the from_address string
-    const fromAddress = `${name}, ${phone}, ${street}, ${city},${state}, ${zip}, ${country}`;
+    const fromAddress = JSON.stringify(req.body);
 
     // Check if UUID exists in the database
     const selectQuery = `
@@ -349,12 +345,11 @@ async function toAddress(req, res) {
     let uuid = decrypted.uuid;
     console.log(uuid);
 
-    const { name, phone, street, city, state, zip, country } = req.body;
 
-    // Constructing the to_address string
-    const toAddress = `${name},${street},${zip}, ${country},${state}, ${city}, ${phone}`;
+    // const { name, phone, street, city, state, zip, country } = req.body;
 
-    // Check if UUID exists in the database
+    const toAddress = req.body;
+
     const selectQuery = `
       SELECT * FROM package_details WHERE uuid = ?
     ;`
@@ -365,19 +360,20 @@ async function toAddress(req, res) {
       }
 
       if (selectResults.length > 0) {
-        const { parcelDetails, from_address } = selectResults[0];
-        console.log(parcelDetails, from_address);
+        const { parcelDetails, from_address } = selectResults[selectResults.length-1];
+        console.log("parceldetails: ==>",parcelDetails, from_address);
+        console.log(typeof(parcelDetails));
 
         // Check if parcelDetails is not null
         if (parcelDetails) {
-          // Parse the JSON string to extract parcel details
-          const { length, width, height, weight } = JSON.parse(parcelDetails);
 
           // Check if any essential dimension information is missing
-          if (length && width && height && weight && from_address) {
-            const parcelDetails = { length, width, height, weight };
+          if (parcelDetails && from_address) {
+            const detailsOfPackage = JSON.parse(parcelDetails);
+            const fromDetails =JSON.parse(from_address);
+            console.log("=====>", fromDetails, toAddress, detailsOfPackage);
 
-            const amount = await enc.calculateShippingRate(from_address, toAddress, parcelDetails);
+            const amount = await enc.calculateShippingRate(fromDetails, toAddress, detailsOfPackage);
 
             const updateQuery = `
               UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?
@@ -432,11 +428,11 @@ async function createPayment(req, res) {
       payment_method: 'pm_card_visa',
     })
 
-    res.status(200).send(paymentIntent);
+    res.json({ clientSecret: paymentIntent.client_secret });
 
   } catch (error) {
-    res.status(400).send({ success: false, msg: error.message });
-  }
+    console.error('Error creating PaymentIntent:', error);
+    res.status(500).send({ error: error.message });  }
 }
 async function product(req, res) {
   try {
@@ -444,7 +440,6 @@ async function product(req, res) {
     const decrypted = enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
 
-    // Query to retrieve Weight, height, and width from the package_details table
     const dimensionsQuery = `
       SELECT  height, width, amount FROM package_details WHERE uuid = ?;`;
 

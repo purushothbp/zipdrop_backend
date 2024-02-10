@@ -30,8 +30,13 @@ async function calculateShippingRate(fromAddress, toAddress, parcelDetails) {
       parcel: parcelDetails,
     };
     const rates = await client.BetaRate.retrieveStatelessRates(shipmentDetails);
-    const calculatedRate = rates[0].rate;
-    return calculatedRate;
+
+    if (rates && rates.length > 0) { // Check if rates array is not empty
+      const calculatedRate = rates[0].rate;
+      return calculatedRate;
+    } else {
+      return "error in calculating rates";
+    }
   } catch (error) {
     console.error('Error calculating shipping rate:', error);
     throw error;
