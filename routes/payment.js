@@ -10,7 +10,7 @@ app.use(express.json);
 app.use(express.urlencoded({extended: false}));
 app.use(cors());
 
-router.post('/create-customer', services.createPayment);
+router.post('/create-payment', services.createPayment);
 router.post('/add-card', services.addNewCard);
 router.post('/create-charges', services.createCharges);
 router.post('/product-info',services.product);

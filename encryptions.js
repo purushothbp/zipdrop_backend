@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken')
 require('dotenv').config();
-
-
+const EasyPostClient = require('@easypost/api');
+const client = new EasyPostClient(process.env.EASYPOST_API_KEY);
 
 function generateAuthToken(uuid, whatsappNumber) {
     const secret = process.env.SECRET_FOR_ENCR_DECR;
@@ -22,12 +22,72 @@ function decryptAuthToken(token) {
     }
 }
 
+async function calculateShippingRate(fromAddress, toAddress, parcelDetails) {
+  try {
+    const shipmentDetails = {
+      to_address: toAddress,
+      from_address: fromAddress,
+      parcel: parcelDetails,
+    };
+    const rates = await client.BetaRate.retrieveStatelessRates(shipmentDetails);
+
+    if (rates && rates.length > 0) { // Check if rates array is not empty
+      const calculatedRate = rates[0].rate;
+      return calculatedRate;
+    } else {
+      return "error in calculating rates";
+    }
+  } catch (error) {
+    console.error('Error calculating shipping rate:', error);
+    throw error;
+  }
+}
+
+
+
 
 module.exports = {
     generateAuthToken,
-    decryptAuthToken
+    decryptAuthToken,
+    calculateShippingRate
 }
 
-// generateAuthToken("kagre6ttrby32w","916382331949")
 
-//  decryptAuthToken("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoia2FncmU2dHRyYnkzMnd8OTE2MzgyMzMxOTQ5IiwiaWF0IjoxNzA2OTUyODQ4LCJleHAiOjE3MDY5NTQ2NDh9.H05z4Zi85ODBGaWdeyhXr8MuOoemDvg_4x13lBR7DsI");
+// // Example usage
+// (async () => {
+//     const fromAddress = {
+//       street1: '417 Montgomery Street',
+//       street2: 'FL 5',
+//       city: 'San Francisco',
+//       state: 'CA',
+//       zip: '94104',
+//       country: 'US',
+//       company: 'EasyPost',
+//       phone: '415-123-4567',
+//     };
+  
+//     const toAddress = {
+//       name: 'Dr. Steve Brule',
+//       street1: '179 N Harbor Dr',
+//       city: 'Redondo Beach',
+//       state: 'CA',
+//       zip: '90277',
+//       country: 'US',
+//       email: 'dr_steve_brule@gmail.com',
+//       phone: '4155559999',
+//     };
+  
+//     const parcelDetails = {
+//       length: 20.2,
+//       width: 10.9,
+//       height: 5,
+//       weight: 65.9,
+//     };
+  
+//     try {
+//       const rate = await calculateShippingRate(fromAddress, toAddress, parcelDetails);
+//       console.log('Shipping rate:', rate);
+//     } catch (error) {
+//       console.error('Failed to calculate shipping rate:', error);
+//     }
+//   })();

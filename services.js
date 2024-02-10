@@ -260,15 +260,13 @@ async function packageDetails(req, res) {
     const decrypted = await enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
     console.log(uuid);
-    const { Weight, width, height } = req.body;
-
-    const amount = Weight * 10;
+      const parcelDetails = JSON.stringify(req.body);
     const insertQuery = `
-      INSERT INTO package_details (uuid, Weight, height, width, amount)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO package_details (uuid, parcelDetails)
+      VALUES (?, ?)
     `;
 
-    const values = [uuid, Weight, height, width, amount];
+    const values = [uuid, parcelDetails];
 
     dbConnection.query(insertQuery, values, (error, results) => {
       if (error) {
@@ -293,11 +291,8 @@ async function fromAddress(req, res) {
     const decrypted = await enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
     console.log(uuid);
-
-    const { name, mobileNumber, address, city, pincode, locality } = req.body;
-
     // Constructing the from_address string
-    const fromAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
+    const fromAddress = JSON.stringify(req.body);
 
     // Check if UUID exists in the database
     const selectQuery = `
@@ -346,40 +341,63 @@ async function fromAddress(req, res) {
 async function toAddress(req, res) {
   try {
     const authToken = req.headers.authorization.replace('Bearer ', '');
-    const decrypted = await enc.decryptAuthToken(authToken);
+    const decrypted = enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
     console.log(uuid);
 
-    const { name, mobileNumber, address, city, pincode, locality } = req.body;
 
-    // Constructing the to_address string
-    const toAddress = `${name}, ${mobileNumber}, ${address}, ${city}, ${pincode}, ${locality}`;
+    // const { name, phone, street, city, state, zip, country } = req.body;
 
-    // Check if UUID exists in the database
+    const toAddress = req.body;
+
     const selectQuery = `
       SELECT * FROM package_details WHERE uuid = ?
-    `;
-    dbConnection.query(selectQuery, [uuid], (selectError, selectResults) => {
+    ;`
+    dbConnection.query(selectQuery, [uuid], async (selectError, selectResults) => {
       if (selectError) {
         console.error('Error querying record:', selectError);
         return res.status(500).json({ success: false, error: selectError.message });
       }
 
       if (selectResults.length > 0) {
-        // UUID exists, update the to_address column
-        const updateQuery = `
-          UPDATE package_details SET to_address = ? WHERE uuid = ?
-        `;
-        dbConnection.query(updateQuery, [toAddress, uuid], (updateError, updateResults) => {
-          if (updateError) {
-            console.error('Error updating record:', updateError);
-            return res.status(500).json({ success: false, error: updateError.message });
+        const { parcelDetails, from_address } = selectResults[selectResults.length-1];
+        console.log("parceldetails: ==>",parcelDetails, from_address);
+        console.log(typeof(parcelDetails));
+
+        // Check if parcelDetails is not null
+        if (parcelDetails) {
+
+          // Check if any essential dimension information is missing
+          if (parcelDetails && from_address) {
+            const detailsOfPackage = JSON.parse(parcelDetails);
+            const fromDetails =JSON.parse(from_address);
+            console.log("=====>", fromDetails, toAddress, detailsOfPackage);
+
+            const amount = await enc.calculateShippingRate(fromDetails, toAddress, detailsOfPackage);
+
+            const updateQuery = `
+              UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?
+            `;
+
+            dbConnection.query(updateQuery, [toAddress, amount, uuid], (updateError, updateResults) => {
+              if (updateError) {
+                console.error('Error updating record:', updateError);
+                return res.status(500).json({ success: false, error: updateError.message });
+              }
+              console.log('Record updated successfully:', updateResults);
+              res.json({ success: true, message: 'Receiver details updated successfully' });
+            });
+          } else {
+            // Handle missing dimension information
+            console.error('Missing essential dimension information');
+            res.status(400).json({ success: false, error: 'Missing essential dimension information' });
           }
-          console.log('Record updated successfully:', updateResults);
-          res.json({ success: true, message: 'Receiver details updated successfully' });
-        });
+        } else {
+          // Handle null parcelDetails
+          console.error('Parcel details are null');
+          res.status(400).json({ success: false, error: 'Parcel details are null' });
+        }
       } else {
-        // UUID doesn't exist, insert a new row
         const insertQuery = `
           INSERT INTO package_details (uuid, to_address) VALUES (?, ?)
         `;
@@ -410,11 +428,11 @@ async function createPayment(req, res) {
       payment_method: 'pm_card_visa',
     })
 
-    res.status(200).send(paymentIntent);
+    res.json({ clientSecret: paymentIntent.client_secret });
 
   } catch (error) {
-    res.status(400).send({ success: false, msg: error.message });
-  }
+    console.error('Error creating PaymentIntent:', error);
+    res.status(500).send({ error: error.message });  }
 }
 async function product(req, res) {
   try {
@@ -422,7 +440,6 @@ async function product(req, res) {
     const decrypted = enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
 
-    // Query to retrieve Weight, height, and width from the package_details table
     const dimensionsQuery = `
       SELECT Weight, height, width, amount FROM package_details WHERE uuid = ?;`;
 
@@ -437,31 +454,40 @@ async function product(req, res) {
       }
 
       const { Weight, height, width, amount } = result[0];
-      console.log( Weight, height, width, amount);
-      const {orders} = req.body;
-      const lineItems = orders.map((order)=>({
-        price_data:{
-          currency:"INR",
-          order_data:{
-            name:order.name
+      console.log('Retrieved package details:', Weight, height, width, amount);
+
+      const { orders } = req.body;
+      if (!Array.isArray(orders)) {
+        console.error('Orders is not an array');
+        return res.status(400).json({ success: false, error: 'Orders must be an array' });
+      }
+
+      const lineItems = orders.map((order) => ({
+        price_data: {
+          currency: "INR",
+          product_data: {
+            name: order.name
           },
-          unit_amount: Math.round(order.price*10),
-        }
+          unit_amount: Math.round(order.price * 10), // Assuming order.price is the price in rupees
+        },
+        quantity: order.quantity
       }));
+
       const session = await stripe.checkout.sessions.create({
-        payment_method_type:["card"],
-        line_items:lineItems,
-        mode:"payment",
-        success_url:"",
-        cancel_url:""
-      })
-      res.json({id:session.id})
+        payment_method_types: ["card"],
+        line_items: lineItems,
+        mode: "payment",
+        success_url: "http://localhost:4000/Home",
+        cancel_url: "http://localhost:4000/cancel"
+      });
+
+      res.json({ id: session });
     });
   } catch (err) {
+    console.error('Error in product function:', err);
     res.status(500).send(err);
   }
 }
-
 
 async function addNewCard(req, res) {
   try {
@@ -512,7 +538,6 @@ async function createCharges(req, res) {
 
 }
 
-
 module.exports = {
   otpGeneration,
   userLogin,
@@ -523,6 +548,6 @@ module.exports = {
   createPayment,
   addNewCard,
   createCharges,
-  product
+  product,
 }
 
