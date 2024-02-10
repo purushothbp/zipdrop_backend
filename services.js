@@ -346,7 +346,6 @@ async function toAddress(req, res) {
     console.log(uuid);
 
 
-    // const { name, phone, street, city, state, zip, country } = req.body;
 
     const toAddress = req.body;
 
@@ -361,8 +360,6 @@ async function toAddress(req, res) {
 
       if (selectResults.length > 0) {
         const { parcelDetails, from_address } = selectResults[selectResults.length-1];
-        console.log("parceldetails: ==>",parcelDetails, from_address);
-        console.log(typeof(parcelDetails));
 
         // Check if parcelDetails is not null
         if (parcelDetails) {
@@ -371,7 +368,6 @@ async function toAddress(req, res) {
           if (parcelDetails && from_address) {
             const detailsOfPackage = JSON.parse(parcelDetails);
             const fromDetails =JSON.parse(from_address);
-            console.log("=====>", fromDetails, toAddress, detailsOfPackage);
 
             const amount = await enc.calculateShippingRate(fromDetails, toAddress, detailsOfPackage);
 
@@ -441,7 +437,7 @@ async function product(req, res) {
     let uuid = decrypted.uuid;
 
     const dimensionsQuery = `
-      SELECT  height, width, amount FROM package_details WHERE uuid = ?;`;
+      SELECT  parcelDetails, amount FROM package_details WHERE uuid = ?;`;
 
     dbConnection.query(dimensionsQuery, [uuid], async (selectError, result) => {
       if (selectError) {
