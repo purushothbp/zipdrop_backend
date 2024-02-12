@@ -344,8 +344,9 @@ async function toAddress(req, res) {
     const decrypted = enc.decryptAuthToken(authToken);
     let uuid = decrypted.uuid;
     console.log(uuid);
-    const toAddress = req.body;
 
+    const toAddress = JSON.stringify(req.body);
+//its before like 
     const selectQuery = `
       SELECT * FROM package_details WHERE uuid = ?
     ;`
@@ -362,11 +363,12 @@ async function toAddress(req, res) {
         if (parcelDetails) {
 
           // Check if any essential dimension information is missing
-          if (parcelDetails && from_address) {
+          if (parcelDetails && from_address && toAddress) {
             const detailsOfPackage = JSON.parse(parcelDetails);
             const fromDetails =JSON.parse(from_address);
+            const toDetails = JSON.parse(toAddress)
 
-            const amount = await enc.calculateShippingRate(fromDetails, toAddress, detailsOfPackage);
+            const amount = await enc.calculateShippingRate(fromDetails, toDetails, detailsOfPackage);
 
             const updateQuery = `
               UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?
