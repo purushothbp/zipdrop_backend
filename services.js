@@ -370,9 +370,7 @@ async function toAddress(req, res) {
 
             const amount = await enc.calculateShippingRate(fromDetails, toDetails, detailsOfPackage);
 
-            const updateQuery = `
-              UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?
-            `;
+            const updateQuery =`UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?`;
 
             dbConnection.query(updateQuery, [toAddress, amount, uuid], (updateError, updateResults) => {
               if (updateError) {
