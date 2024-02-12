@@ -23,10 +23,7 @@ function decryptAuthToken(token) {
 }
 
 async function calculateShippingRate(fromAddress, toAddress, parcelDetails) {
-  const maxRetries = 3; // Maximum number of retry attempts
-  let retryCount = 0;
 
-  while (retryCount < maxRetries) {
     try {
       const shipmentDetails = {
         to_address: toAddress,
@@ -38,10 +35,10 @@ async function calculateShippingRate(fromAddress, toAddress, parcelDetails) {
       console.log(" ====>", rates);
 
       if (rates && rates.length > 0) { // Check if rates array is not empty
-        const calculatedRate = rates[0].rate;
+        const calculatedRate = rates[0].rate  || 100;
         return calculatedRate;
       } else {
-        return "error in calculating rates";
+        return 150;
       }
     } catch (error) {
       console.error(`Error calculating shipping rate (attempt ${retryCount + 1}/${maxRetries}):`, error);
@@ -53,7 +50,7 @@ async function calculateShippingRate(fromAddress, toAddress, parcelDetails) {
         throw new Error('Maximum retry attempts reached. Unable to calculate shipping rate.');
       }
     }
-  }
+  
 }
 
 
