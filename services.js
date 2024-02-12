@@ -366,24 +366,24 @@ async function toAddress(req, res) {
             const detailsOfPackage = JSON.parse(parcelDetails);
             const fromDetails =JSON.parse(from_address);
             const toDetails = JSON.parse(toAddress)
-
+        
             const amount = await enc.calculateShippingRate(fromDetails, toDetails, detailsOfPackage);
-
+        {amount?(
+          amount
+        ):(200)} 
             const updateQuery =`UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?`;
-
+        
             dbConnection.query(updateQuery, [toAddress, amount, uuid], (updateError, updateResults) => {
-              if (updateError) {
-                console.error('Error updating record:', updateError);
-                return res.status(500).json({ success: false, error: updateError.message });
-              }
-              console.log('Record updated successfully:', updateResults);
-              res.json({ success: true, message: 'Receiver details updated successfully' });
+                if (updateError) {
+                    console.error('Error updating record:', updateError);
+                    return res.status(500).json({ success: false, error: updateError.message });
+                }
+                console.log('Record updated successfully:', updateResults);
+                res.json({ success: true, message: 'Receiver details updated successfully' });
+                res.send(amount);
             });
-          } else {
-            // Handle missing dimension information
-            console.error('Missing essential dimension information');
-            res.status(400).json({ success: false, error: 'Missing essential dimension information' });
-          }
+        }
+        
         } else {
           // Handle null parcelDetails
           console.error('Parcel details are null');
