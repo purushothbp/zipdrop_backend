@@ -368,7 +368,7 @@ async function toAddress(req, res) {
             const toDetails = JSON.parse(toAddress)
 
             const amount = await enc.calculateShippingRate(fromDetails, toDetails, detailsOfPackage);
-
+            console.log("=amount===>",amount);
             const updateQuery = `
               UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?
             `;
@@ -379,7 +379,7 @@ async function toAddress(req, res) {
                 return res.status(500).json({ success: false, error: updateError.message });
               }
               console.log('Record updated successfully:', updateResults);
-              res.json({ success: true, message: 'Receiver details updated successfully' });
+              res.json({ success: true, message: 'Receiver details updated successfully' , amount});
             });
           } else {
             // Handle missing dimension information
@@ -405,7 +405,6 @@ async function toAddress(req, res) {
         });
       }
     });
-    res.send(amount);
   } catch (error) {
     console.error('Error in /to_address:', error);
     res.status(500).json({ success: false, error: error.message });
