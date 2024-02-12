@@ -346,7 +346,6 @@ async function toAddress(req, res) {
     console.log(uuid);
 
     const toAddress = JSON.stringify(req.body);
-//its before like 
     const selectQuery = `
       SELECT * FROM package_details WHERE uuid = ?
     ;`
@@ -406,6 +405,7 @@ async function toAddress(req, res) {
         });
       }
     });
+    res.send(amount);
   } catch (error) {
     console.error('Error in /to_address:', error);
     res.status(500).json({ success: false, error: error.message });
