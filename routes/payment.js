@@ -12,7 +12,6 @@ app.use(cors());
 
 router.post('/create-payment', services.createPayment);
 router.post('/add-card', services.addNewCard);
-router.post('/create-charges', services.createCharges);
 router.post('/product-info',services.product);
 
 router.get('/success', (req,res)=>{
