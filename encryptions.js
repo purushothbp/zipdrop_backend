@@ -5,7 +5,7 @@ const client = new EasyPostClient(process.env.EASYPOST_API_KEY);
 
 function generateAuthToken(uuid, whatsappNumber) {
     const secret = process.env.SECRET_FOR_ENCR_DECR;
-    const expirationTime = '2h';
+    const expirationTime = '10h';
     const token = jwt.sign({ uuid, whatsappNumber }, secret, {expiresIn: expirationTime});
     return expirationTime,token;
 }
