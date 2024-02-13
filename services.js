@@ -368,7 +368,6 @@ async function toAddress(req, res) {
             const toDetails = JSON.parse(toAddress)
 
             const amount = await enc.calculateShippingRate(fromDetails, toDetails, detailsOfPackage);
-            console.log("=amount===>",amount);
             const updateQuery = `
               UPDATE package_details SET to_address = ?, amount = ? WHERE uuid = ?
             `;
@@ -482,55 +481,83 @@ async function product(req, res) {
     res.status(500).send(err);
   }
 }
-
 async function addNewCard(req, res) {
   try {
+    const authToken = req.headers.authorization.replace('Bearer ', '');
+    const decrypted = enc.decryptAuthToken(authToken);
+    let uuid = decrypted.uuid;
 
-    const {
-      customer_id,
-      card_Name,
-      card_ExpYear,
-      card_ExpMonth,
-      card_Number,
-      card_CVC,
-    } = req.body;
-
-    const card_token = await stripe.tokens.create({
-      card: {
-        name: card_Name,
-        number: card_Number,
-        exp_year: card_ExpYear,
-        exp_month: card_ExpMonth,
-        cvc: card_CVC
+    const selectQuery = `
+      SELECT * FROM package_details WHERE uuid = ?
+    ;`
+    dbConnection.query(selectQuery, [uuid], async (selectError, selectResults) => {
+      if (selectError) {
+        console.error('Error querying record:', selectError);
+        return res.status(500).json({ success: false, error: selectError.message });
       }
-    });
 
-    const card = await stripe.customers.createSource(customer_id, {
-      source: `${card_token.id}`
-    });
+      // Check if uuid exists
+      if (selectResults.length === 0) {
+        return res.status(404).json({ success: false, error: "User not found/Login expired, pls login to continue" });
+      }
 
-    res.status(200).send({ card: card.id });
+      const {
+        customer_id,
+        card_Name,
+        card_ExpYear,
+        card_ExpMonth,
+        card_Number,
+        card_CVC,
+        amount,
+      } = req.body;
+
+      const card_token = await stripe.tokens.create({
+        card: {
+          name: card_Name,
+          number: card_Number,
+          exp_year: card_ExpYear,
+          exp_month: card_ExpMonth,
+          cvc: card_CVC,
+          amount: amount,
+        }
+      });
+
+      const card = await stripe.customers.createSource(customer_id, {
+        source: `${card_token.id}`
+      });
+
+      const insertOrderQuery = `
+        INSERT INTO orders (customer_id, card_id, amount, status)
+        VALUES (?, ?, ?, 'success')
+      ;`;
+      dbConnection.query(insertOrderQuery, [customer_id, card.id, amount], (insertError, insertResults) => {
+        if (insertError) {
+          console.error('Error inserting order:', insertError);
+          return res.status(500).json({ success: false, error: insertError.message });
+        }
+        res.status(200).send({ success: true, msg: "Payment success" });
+      });
+
+    });
 
   } catch (error) {
     res.status(400).send({ success: false, msg: error.message });
   }
 }
-async function createCharges(req, res) {
-  try {
+// router.get('/cancel', (req, res) => {
+//   // Assuming customer canceled the order, update status to "cancelled" in the database
+//   const updateOrderQuery = `
+//     UPDATE orders SET status = 'cancelled' WHERE customer_id = ?
+//   ;`;
+//   dbConnection.query(updateOrderQuery, [req.body.customer_id], (updateError, updateResults) => {
+//     if (updateError) {
+//       console.error('Error updating order status:', updateError);
+//       return res.status(500).json({ success: false, error: updateError.message });
+//     }
+//     res.send("Payment cancelled, order has not placed");
+//   });
+// });
 
-    const createCharge = await stripe.charges.create({
-      receipt_email: 'mailto:tester@gmail.com',
-      amount: parseInt(req.body.amount) * 100, //amount*100
-      currency: 'INR',
-      card: req.body.card_id,
-      customer: req.body.customer_id
-    });
-    res.status(200).send(createCharge);
-  } catch (error) {
-    res.status(400).send({ success: false, msg: error.message });
-  }
-
-}
 
 module.exports = {
   otpGeneration,
@@ -541,7 +568,6 @@ module.exports = {
   toAddress,
   createPayment,
   addNewCard,
-  createCharges,
   product,
 }
 
