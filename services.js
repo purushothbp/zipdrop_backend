@@ -503,8 +503,6 @@ async function addNewCard(req, res) {
       }
 
       const {
-        customer_id,
-        card_Name,
         card_ExpYear,
         card_ExpMonth,
         card_Number,
@@ -514,7 +512,6 @@ async function addNewCard(req, res) {
 
       const card_token = await stripe.tokens.create({
         card: {
-          name: card_Name,
           number: card_Number,
           exp_year: card_ExpYear,
           exp_month: card_ExpMonth,
@@ -523,7 +520,7 @@ async function addNewCard(req, res) {
         }
       });
 
-      const card = await stripe.customers.createSource(customer_id, {
+      const card = await stripe.customers.createSource(uuid, {
         source: `${card_token.id}`
       });
 
