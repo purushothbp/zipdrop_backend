@@ -481,6 +481,7 @@ async function product(req, res) {
     res.status(500).send(err);
   }
 }
+
 async function addNewCard(req, res) {
   try {
     const authToken = req.headers.authorization.replace('Bearer ', '');

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken')
 require('dotenv').config();
 const EasyPostClient = require('@easypost/api');
+const { response } = require('express');
 const client = new EasyPostClient(process.env.EASYPOST_API_KEY);
 
 function generateAuthToken(uuid, whatsappNumber) {
@@ -41,14 +42,8 @@ async function calculateShippingRate(fromAddress, toAddress, parcelDetails) {
         return 150;
       }
     } catch (error) {
-      console.error(`Error calculating shipping rate (attempt ${retryCount + 1}/${maxRetries}):`, error);
-      retryCount++;
-      if (retryCount < maxRetries) {
-        console.log(`Retrying (${retryCount}/${maxRetries})...`);
-      } else {
-        console.error('Maximum retry attempts reached. Unable to calculate shipping rate.');
-        throw new Error('Maximum retry attempts reached. Unable to calculate shipping rate.');
-      }
+        return (error)
+      
     }
   
 }
