@@ -497,32 +497,23 @@ async function addNewCard(req, res) {
         return res.status(500).json({ success: false, error: selectError.message });
       }
 
-      // Check if uuid exists
       if (selectResults.length === 0) {
         return res.status(404).json({ success: false, error: "User not found/Login expired, pls login to continue" });
       }
 
-      const cardDetails = req.body;
-
-      const card_token = await stripe.tokens.create({
-        card: {
-          number: cardDetails.card_Number,
-          exp_year: cardDetails.card_ExpYear,
-          exp_month: cardDetails.card_ExpMonth,
-          cvc: cardDetails.card_CVC,
-          amount: cardDetails.amount,
-        }
+      // Create the customer in Stripe
+      const { token, amount} = req.body;
+      const customer = await stripe.customers.create({
+        source: token
       });
 
-      const card = await stripe.customers.createSource(uuid, {
-        source: `${card_token.id}`
-      });
-
+      // Insert order into the database
       const insertOrderQuery = `
-        INSERT INTO orders (customer_id, card_id, amount, status)
-        VALUES (?, ?, ?, 'success')
+        INSERT INTO orders (uuid, amount, status)
+        VALUES (?, ?, 'success')
       ;`;
-      dbConnection.query(insertOrderQuery, [customer_id, card.id, amount], (insertError, insertResults) => {
+      
+      dbConnection.query(insertOrderQuery, [uuid, amount], (insertError, insertResults) => {
         if (insertError) {
           console.error('Error inserting order:', insertError);
           return res.status(500).json({ success: false, error: insertError.message });
@@ -536,6 +527,9 @@ async function addNewCard(req, res) {
     res.status(400).send({ success: false, msg: error.message });
   }
 }
+
+
+
 
 // router.get('/cancel', (req, res) => {
 //   // Assuming customer canceled the order, update status to "cancelled" in the database
