@@ -502,21 +502,15 @@ async function addNewCard(req, res) {
         return res.status(404).json({ success: false, error: "User not found/Login expired, pls login to continue" });
       }
 
-      const {
-        card_ExpYear,
-        card_ExpMonth,
-        card_Number,
-        card_CVC,
-        amount,
-      } = req.body;
+      const cardDetails = req.body;
 
       const card_token = await stripe.tokens.create({
         card: {
-          number: card_Number,
-          exp_year: card_ExpYear,
-          exp_month: card_ExpMonth,
-          cvc: card_CVC,
-          amount: amount,
+          number: cardDetails.card_Number,
+          exp_year: cardDetails.card_ExpYear,
+          exp_month: cardDetails.card_ExpMonth,
+          cvc: cardDetails.card_CVC,
+          amount: cardDetails.amount,
         }
       });
 
@@ -542,6 +536,7 @@ async function addNewCard(req, res) {
     res.status(400).send({ success: false, msg: error.message });
   }
 }
+
 // router.get('/cancel', (req, res) => {
 //   // Assuming customer canceled the order, update status to "cancelled" in the database
 //   const updateOrderQuery = `
