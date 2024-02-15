@@ -502,15 +502,15 @@ async function addNewCard(req, res) {
       }
 
       // Create the customer in Stripe
-      const { token, amount} = req.body;
+      const { token, amount } = req.body;
       const customer = await stripe.customers.create({
         source: token
       });
 
-      // Insert order into the database
+      // Insert order into the database with current date and time
       const insertOrderQuery = `
-        INSERT INTO orders (uuid, amount, status)
-        VALUES (?, ?, 'success')
+        INSERT INTO orders (uuid, amount, status, date)
+        VALUES (?, ?, 'success', CURRENT_TIMESTAMP)
       ;`;
       
       dbConnection.query(insertOrderQuery, [uuid, amount], (insertError, insertResults) => {
@@ -527,6 +527,7 @@ async function addNewCard(req, res) {
     res.status(400).send({ success: false, msg: error.message });
   }
 }
+
 
 
 
